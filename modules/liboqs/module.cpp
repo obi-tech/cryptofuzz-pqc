@@ -3,6 +3,7 @@
 #include <cryptofuzz/repository.h>
 #include <cstring>
 #include <cstdlib>
+#include <memory>
 
 extern "C" {
     #include <oqs/oqs.h>
@@ -13,6 +14,115 @@ namespace module {
 
 liboqs::liboqs(void) :
     Module("liboqs") {
+}
+
+namespace {
+    // Helper function to map Cryptofuzz KEM types to liboqs algorithm names
+    const char* kemTypeToOQSAlg(uint64_t kemType) {
+        // You'll need to add KEM type definitions to your repository
+        // For now, using placeholder comparisons
+        // Replace CF_KEM(...) with actual values from your repository
+        switch(kemType) {
+            case 0: // ML-KEM-512 (Kyber512)
+                return OQS_KEM_alg_ml_kem_512;
+            case 1: // ML-KEM-768 (Kyber768)
+                return OQS_KEM_alg_ml_kem_768;
+            case 2: // ML-KEM-1024 (Kyber1024)
+                return OQS_KEM_alg_ml_kem_1024;
+            default:
+                return nullptr;
+        }
+    }
+}
+
+std::optional<component::KEM_KeyPair> liboqs::OpKEM_GenerateKeyPair(operation::KEM_GenerateKeyPair& op) {
+    std::optional<component::KEM_KeyPair> ret = std::nullopt;
+    
+    const char* alg_name = kemTypeToOQSAlg(op.kemType.Get());
+    if (alg_name == nullptr) {
+        return ret;
+    }
+    
+    OQS_KEM *kem = OQS_KEM_new(alg_name);
+    if (kem == nullptr) {
+        return ret;
+    }
+    
+    std::unique_ptr<uint8_t[]> public_key(new uint8_t[kem->length_public_key]);
+    std::unique_ptr<uint8_t[]> secret_key(new uint8_t[kem->length_secret_key]);
+    
+    if (OQS_KEM_keypair(kem, public_key.get(), secret_key.get()) == OQS_SUCCESS) {
+        component::KEM_PublicKey pub(public_key.get(), kem->length_public_key);
+        component::KEM_PrivateKey priv(secret_key.get(), kem->length_secret_key);
+        ret = component::KEM_KeyPair(pub, priv);
+    }
+    
+    OQS_KEM_free(kem);
+    return ret;
+}
+
+std::optional<component::KEM_Encapsulated> liboqs::OpKEM_Encapsulate(operation::KEM_Encapsulate& op) {
+    std::optional<component::KEM_Encapsulated> ret = std::nullopt;
+    
+    const char* alg_name = kemTypeToOQSAlg(op.kemType.Get());
+    if (alg_name == nullptr) {
+        return ret;
+    }
+    
+    OQS_KEM *kem = OQS_KEM_new(alg_name);
+    if (kem == nullptr) {
+        return ret;
+    }
+    
+    // Verify public key size matches
+    if (op.pub.GetSize() != kem->length_public_key) {
+        OQS_KEM_free(kem);
+        return ret;
+    }
+    
+    std::unique_ptr<uint8_t[]> ciphertext(new uint8_t[kem->length_ciphertext]);
+    std::unique_ptr<uint8_t[]> shared_secret(new uint8_t[kem->length_shared_secret]);
+    
+    if (OQS_KEM_encaps(kem, ciphertext.get(), shared_secret.get(), 
+                       op.pub.GetPtr()) == OQS_SUCCESS) {
+        component::KEM_Ciphertext ct(ciphertext.get(), kem->length_ciphertext);
+        component::KEM_SharedSecret ss(shared_secret.get(), kem->length_shared_secret);
+        ret = component::KEM_Encapsulated(ct, ss);
+    }
+    
+    OQS_KEM_free(kem);
+    return ret;
+}
+
+std::optional<component::KEM_SharedSecret> liboqs::OpKEM_Decapsulate(operation::KEM_Decapsulate& op) {
+    std::optional<component::KEM_SharedSecret> ret = std::nullopt;
+    
+    const char* alg_name = kemTypeToOQSAlg(op.kemType.Get());
+    if (alg_name == nullptr) {
+        return ret;
+    }
+    
+    OQS_KEM *kem = OQS_KEM_new(alg_name);
+    if (kem == nullptr) {
+        return ret;
+    }
+    
+    // Verify sizes
+    if (op.priv.GetSize() != kem->length_secret_key ||
+        op.ciphertext.GetSize() != kem->length_ciphertext) {
+        OQS_KEM_free(kem);
+        return ret;
+    }
+    
+    std::unique_ptr<uint8_t[]> shared_secret(new uint8_t[kem->length_shared_secret]);
+    
+    if (OQS_KEM_decaps(kem, shared_secret.get(), 
+                       op.ciphertext.GetPtr(), op.priv.GetPtr()) == OQS_SUCCESS) {
+        ret = component::KEM_SharedSecret(shared_secret.get(), kem->length_shared_secret);
+    }
+    
+    OQS_KEM_free(kem);
+    return ret;
 }
 
 std::optional<component::Digest> liboqs::OpDigest(operation::Digest& op) {
