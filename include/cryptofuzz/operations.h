@@ -1886,6 +1886,114 @@ class ECDH_Derive : public Operation {
         }
 };
 
+class KEM_GenerateKeyPair : public Operation {
+    public:
+        const component::KEMType kemType;
+
+        KEM_GenerateKeyPair(Datasource& ds, component::Modifier modifier) :
+            Operation(std::move(modifier)),
+            kemType(ds)
+        { }
+
+        KEM_GenerateKeyPair(nlohmann::json json) :
+            Operation(json["modifier"]),
+            kemType(json["kemType"])
+        { }
+
+        static size_t MaxOperations(void) { return 5; }
+        std::string Name(void) const override;
+        std::string ToString(void) const override;
+        nlohmann::json ToJSON(void) const override;
+        std::string GetAlgorithmString(void) const override {
+            return repository::KEMToString(kemType.Get());
+        }
+        inline bool operator==(const KEM_GenerateKeyPair& rhs) const {
+            return
+                (kemType == rhs.kemType) &&
+                (modifier == rhs.modifier);
+        }
+        void Serialize(Datasource& ds) const {
+            kemType.Serialize(ds);
+        }
+};
+
+class KEM_Encapsulate : public Operation {
+    public:
+        const component::KEMType kemType;
+        const component::KEM_PublicKey pub;
+
+        KEM_Encapsulate(Datasource& ds, component::Modifier modifier) :
+            Operation(std::move(modifier)),
+            kemType(ds),
+            pub(ds)
+        { }
+
+        KEM_Encapsulate(nlohmann::json json) :
+            Operation(json["modifier"]),
+            kemType(json["kemType"]),
+            pub(json["pub"])
+        { }
+
+        static size_t MaxOperations(void) { return 5; }
+        std::string Name(void) const override;
+        std::string ToString(void) const override;
+        nlohmann::json ToJSON(void) const override;
+        std::string GetAlgorithmString(void) const override {
+            return repository::KEMToString(kemType.Get());
+        }
+        inline bool operator==(const KEM_Encapsulate& rhs) const {
+            return
+                (kemType == rhs.kemType) &&
+                (pub == rhs.pub) &&
+                (modifier == rhs.modifier);
+        }
+        void Serialize(Datasource& ds) const {
+            kemType.Serialize(ds);
+            pub.Serialize(ds);
+        }
+};
+
+class KEM_Decapsulate : public Operation {
+    public:
+        const component::KEMType kemType;
+        const component::KEM_PrivateKey priv;
+        const component::KEM_Ciphertext ciphertext;
+
+        KEM_Decapsulate(Datasource& ds, component::Modifier modifier) :
+            Operation(std::move(modifier)),
+            kemType(ds),
+            priv(ds),
+            ciphertext(ds)
+        { }
+
+        KEM_Decapsulate(nlohmann::json json) :
+            Operation(json["modifier"]),
+            kemType(json["kemType"]),
+            priv(json["priv"]),
+            ciphertext(json["ciphertext"])
+        { }
+
+        static size_t MaxOperations(void) { return 5; }
+        std::string Name(void) const override;
+        std::string ToString(void) const override;
+        nlohmann::json ToJSON(void) const override;
+        std::string GetAlgorithmString(void) const override {
+            return repository::KEMToString(kemType.Get());
+        }
+        inline bool operator==(const KEM_Decapsulate& rhs) const {
+            return
+                (kemType == rhs.kemType) &&
+                (priv == rhs.priv) &&
+                (ciphertext == rhs.ciphertext) &&
+                (modifier == rhs.modifier);
+        }
+        void Serialize(Datasource& ds) const {
+            kemType.Serialize(ds);
+            priv.Serialize(ds);
+            ciphertext.Serialize(ds);
+        }
+};
+
 class ECIES_Encrypt : public Operation {
     public:
         const component::Cleartext cleartext;
