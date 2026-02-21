@@ -14,6 +14,7 @@ using DigestType = Type;
 using KDFType = Type;
 using CurveType = Type;
 using CalcOp = Type;
+using KEMType = Type;
 
 using Modifier = Buffer;
 using Cleartext = Buffer;
@@ -30,6 +31,10 @@ using PrivateKeyPEM = Buffer;
 using Tag = Buffer;
 using AAD = Buffer;
 using Secret = Buffer;
+using KEM_PublicKey = Buffer;
+using KEM_PrivateKey = Buffer;
+using KEM_Ciphertext = Buffer;
+using KEM_SharedSecret = Buffer;
 
 using ECC_PrivateKey = Bignum;
 using Bignum = ::cryptofuzz::Bignum;
@@ -409,6 +414,34 @@ class SR25519_Signature {
         SR25519_Signature(nlohmann::json json);
 
         bool operator==(const SR25519_Signature& rhs) const;
+        void Serialize(Datasource& ds) const;
+        nlohmann::json ToJSON(void) const;
+};
+
+class KEM_KeyPair {
+    public:
+        KEM_PublicKey pub;
+        KEM_PrivateKey priv;
+
+        KEM_KeyPair(Datasource& ds);
+        KEM_KeyPair(KEM_PublicKey pub, KEM_PrivateKey priv);
+        KEM_KeyPair(nlohmann::json json);
+
+        bool operator==(const KEM_KeyPair& rhs) const;
+        void Serialize(Datasource& ds) const;
+        nlohmann::json ToJSON(void) const;
+};
+
+class KEM_Encapsulated {
+    public:
+        KEM_Ciphertext ciphertext;
+        KEM_SharedSecret shared_secret;
+
+        KEM_Encapsulated(Datasource& ds);
+        KEM_Encapsulated(KEM_Ciphertext ciphertext, KEM_SharedSecret shared_secret);
+        KEM_Encapsulated(nlohmann::json json);
+
+        bool operator==(const KEM_Encapsulated& rhs) const;
         void Serialize(Datasource& ds) const;
         nlohmann::json ToJSON(void) const;
 };
