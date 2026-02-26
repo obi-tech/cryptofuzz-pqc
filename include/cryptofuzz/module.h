@@ -363,6 +363,20 @@ class Module {
             (void)op;
             return std::nullopt;
         }
+
+                // KEM operations
+        virtual std::optional<component::KEM_KeyPair> OpKEM_GenerateKeyPair(operation::KEM_GenerateKeyPair& op) {
+            (void)op;
+            return std::nullopt;
+        }
+        virtual std::optional<component::KEM_Encapsulated> OpKEM_Encapsulate(operation::KEM_Encapsulate& op) {
+            (void)op;
+            return std::nullopt;
+        }
+        virtual std::optional<component::KEM_SharedSecret> OpKEM_Decapsulate(operation::KEM_Decapsulate& op) {
+            (void)op;
+            return std::nullopt;
+        }
 };
 
 } /* namespace cryptofuzz */
