@@ -363,8 +363,6 @@ class Module {
             (void)op;
             return std::nullopt;
         }
-
-                // KEM operations
         virtual std::optional<component::KEM_KeyPair> OpKEM_GenerateKeyPair(operation::KEM_GenerateKeyPair& op) {
             (void)op;
             return std::nullopt;
