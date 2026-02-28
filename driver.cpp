@@ -123,6 +123,9 @@ void Driver::Run(const uint8_t* data, const size_t size) const {
     static ExecutorBLS_G1_MultiExp executorBLS_G1_MultiExp(CF_OPERATION("BLS_G1_MultiExp"), modules, options);
     static ExecutorMisc executorMisc(CF_OPERATION("Misc"), modules, options);
     static ExecutorSR25519_Verify executorSR25519_Verify(CF_OPERATION("SR25519_Verify"), modules, options);
+    static ExecutorKEM_GenerateKeyPair executorKEM_GenerateKeyPair(CF_OPERATION("KEM_GenerateKeyPair"), modules, options);
+    static ExecutorKEM_Encapsulate executorKEM_Encapsulate(CF_OPERATION("KEM_Encapsulate"), modules, options);
+    static ExecutorKEM_Decapsulate executorKEM_Decapsulate(CF_OPERATION("KEM_Decapsulate"), modules, options);
 
     try {
 
@@ -457,6 +460,15 @@ void Driver::Run(const uint8_t* data, const size_t size) const {
                 break;
             case CF_OPERATION("SR25519_Verify"):
                 executorSR25519_Verify.Run(ds, payload.data(), payload.size());
+                break;
+            case CF_OPERATION("KEM_GenerateKeyPair"):
+                executorKEM_GenerateKeyPair.Run(ds, payload.data(), payload.size());
+                break;
+            case CF_OPERATION("KEM_Encapsulate"):
+                executorKEM_Encapsulate.Run(ds, payload.data(), payload.size());
+                break;
+            case CF_OPERATION("KEM_Decapsulate"):
+                executorKEM_Decapsulate.Run(ds, payload.data(), payload.size());
                 break;
         }
     } catch ( Datasource::OutOfData& ) {
