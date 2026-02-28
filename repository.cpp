@@ -235,5 +235,32 @@ std::optional<size_t> DigestSize(const uint64_t id) {
     }
 }
 
+std::string KEMToString(const uint64_t id) {
+    switch(id) {
+        case 0x8e3e1d5c6a2b4f90ULL: // 
+            return "ML-KEM-512";
+        case 0x7d2c3b4a5e6f8091ULL: 
+            return "ML-KEM-768";
+        case 0x6c1b2a394d5e7f82ULL: 
+            return "ML-KEM-1024";
+        default:
+            return "(unknown KEM)";
+    }
+}
+
+std::optional<uint64_t> KEMFromString(const std::string& s) {
+    static const std::map<std::string, uint64_t> LUT = {
+        {"ML-KEM-512", 0x8e3e1d5c6a2b4f90ULL},
+        {"ML-KEM-768", 0x7d2c3b4a5e6f8091ULL},
+        {"ML-KEM-1024", 0x6c1b2a394d5e7f82ULL},
+    };
+    
+    if ( LUT.find(s) == LUT.end() ) {
+        return std::nullopt;
+    }
+    
+    return LUT.at(s);
+}
+
 } /* namespace repository */
 } /* namespace cryptofuzz */
