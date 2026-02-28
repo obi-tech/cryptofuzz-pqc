@@ -977,6 +977,72 @@ nlohmann::json SR25519_Signature::ToJSON(void) const {
     return std::vector<nlohmann::json>{signature.ToJSON(), pub.ToJSON()};
 }
 
+KEM_KeyPair::KEM_KeyPair(Datasource& ds) :
+    pub(ds),
+    priv(ds)
+{ }
+
+KEM_KeyPair::KEM_KeyPair(KEM_PublicKey pub, KEM_PrivateKey priv) :
+    pub(pub),
+    priv(priv)
+{ }
+
+KEM_KeyPair::KEM_KeyPair(nlohmann::json json) :
+    pub(json["pub"]),
+    priv(json["priv"])
+{ }
+
+bool KEM_KeyPair::operator==(const KEM_KeyPair& rhs) const {
+    return
+        (pub == rhs.pub) &&
+        (priv == rhs.priv);
+}
+
+void KEM_KeyPair::Serialize(Datasource& ds) const {
+    pub.Serialize(ds);
+    priv.Serialize(ds);
+}
+
+nlohmann::json KEM_KeyPair::ToJSON(void) const {
+    nlohmann::json j;
+    j["pub"] = pub.ToJSON();
+    j["priv"] = priv.ToJSON();
+    return j;
+}
+
+KEM_Encapsulated::KEM_Encapsulated(Datasource& ds) :
+    ciphertext(ds),
+    shared_secret(ds)
+{ }
+
+KEM_Encapsulated::KEM_Encapsulated(KEM_Ciphertext ciphertext, KEM_SharedSecret shared_secret) :
+    ciphertext(ciphertext),
+    shared_secret(shared_secret)
+{ }
+
+KEM_Encapsulated::KEM_Encapsulated(nlohmann::json json) :
+    ciphertext(json["ciphertext"]),
+    shared_secret(json["shared_secret"])
+{ }
+
+bool KEM_Encapsulated::operator==(const KEM_Encapsulated& rhs) const {
+    return
+        (ciphertext == rhs.ciphertext) &&
+        (shared_secret == rhs.shared_secret);
+}
+
+void KEM_Encapsulated::Serialize(Datasource& ds) const {
+    ciphertext.Serialize(ds);
+    shared_secret.Serialize(ds);
+}
+
+nlohmann::json KEM_Encapsulated::ToJSON(void) const {
+    nlohmann::json j;
+    j["ciphertext"] = ciphertext.ToJSON();
+    j["shared_secret"] = shared_secret.ToJSON();
+    return j;
+}
+
 } /* namespace component */
 
 } /* namespace cryptofuzz */
