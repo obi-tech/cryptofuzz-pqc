@@ -291,5 +291,8 @@ using ExecutorBLS_G2_Neg = ExecutorBase<component::G2, operation::BLS_G2_Neg>;
 using ExecutorBLS_G1_MultiExp = ExecutorBase<component::G1, operation::BLS_G1_MultiExp>;
 using ExecutorMisc = ExecutorBase<Buffer, operation::Misc>;
 using ExecutorSR25519_Verify = ExecutorBase<bool, operation::SR25519_Verify>;
+using ExecutorKEM_GenerateKeyPair = ExecutorBase<component::KEM_KeyPair, operation::KEM_GenerateKeyPair>;
+using ExecutorKEM_Encapsulate = ExecutorBase<component::KEM_Encapsulated, operation::KEM_Encapsulate>;
+using ExecutorKEM_Decapsulate = ExecutorBase<component::KEM_SharedSecret, operation::KEM_Decapsulate>;
 
 } /* namespace cryptofuzz */
