@@ -19,19 +19,16 @@ liboqs::liboqs(void) :
 namespace {
     // Helper function to map Cryptofuzz KEM types to liboqs algorithm names
     const char* kemTypeToOQSAlg(uint64_t kemType) {
-        // You'll need to add KEM type definitions to your repository
-        // For now, using placeholder comparisons
-        // Replace CF_KEM(...) with actual values from your repository
-        switch(kemType) {
-            case 0: // ML-KEM-512 (Kyber512)
-                return OQS_KEM_alg_ml_kem_512;
-            case 1: // ML-KEM-768 (Kyber768)
-                return OQS_KEM_alg_ml_kem_768;
-            case 2: // ML-KEM-1024 (Kyber1024)
-                return OQS_KEM_alg_ml_kem_1024;
-            default:
-                return nullptr;
+        // ML-KEM (Kyber) variants
+        if (kemType == CF_KEM("ML-KEM-512")) {
+            return OQS_KEM_alg_ml_kem_512;
+        } else if (kemType == CF_KEM("ML-KEM-768")) {
+            return OQS_KEM_alg_ml_kem_768;
+        } else if (kemType == CF_KEM("ML-KEM-1024")) {
+            return OQS_KEM_alg_ml_kem_1024;
         }
+        
+        return nullptr;
     }
 }
 
