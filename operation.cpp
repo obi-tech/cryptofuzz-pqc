@@ -2391,5 +2391,69 @@ nlohmann::json SR25519_Verify::ToJSON(void) const {
     return j;
 }
 
+std::string KEM_GenerateKeyPair::Name(void) const { 
+    return "KEM_GenerateKeyPair"; 
+}
+
+std::string KEM_GenerateKeyPair::ToString(void) const {
+    std::stringstream ss;
+    ss << "operation name: KEM_GenerateKeyPair" << std::endl;
+    ss << "kem type: " << repository::KEMToString(kemType.Get()) << std::endl;
+    return ss.str();
+}
+
+nlohmann::json KEM_GenerateKeyPair::ToJSON(void) const {
+    nlohmann::json j;
+    j["operation"] = "KEM_GenerateKeyPair";
+    j["kemType"] = kemType.ToJSON();
+    j["modifier"] = modifier.ToJSON();
+    return j;
+}
+
+std::string KEM_Encapsulate::Name(void) const { 
+    return "KEM_Encapsulate"; 
+}
+
+std::string KEM_Encapsulate::ToString(void) const {
+    std::stringstream ss;
+    ss << "operation name: KEM_Encapsulate" << std::endl;
+    ss << "kem type: " << repository::KEMToString(kemType.Get()) << std::endl;
+    ss << "public key: " << util::HexDump(pub.Get()) << std::endl;
+    return ss.str();
+}
+
+nlohmann::json KEM_Encapsulate::ToJSON(void) const {
+    nlohmann::json j;
+    j["operation"] = "KEM_Encapsulate";
+    j["kemType"] = kemType.ToJSON();
+    j["pub"] = pub.ToJSON();
+    j["modifier"] = modifier.ToJSON();
+    return j;
+}
+
+std::string KEM_Decapsulate::Name(void) const { 
+    return "KEM_Decapsulate"; 
+}
+
+std::string KEM_Decapsulate::ToString(void) const {
+    std::stringstream ss;
+    ss << "operation name: KEM_Decapsulate" << std::endl;
+    ss << "kem type: " << repository::KEMToString(kemType.Get()) << std::endl;
+    ss << "private key: " << util::HexDump(priv.Get()) << std::endl;
+    ss << "ciphertext: " << util::HexDump(ciphertext.Get()) << std::endl;
+    return ss.str();
+}
+
+nlohmann::json KEM_Decapsulate::ToJSON(void) const {
+    nlohmann::json j;
+    j["operation"] = "KEM_Decapsulate";
+    j["kemType"] = kemType.ToJSON();
+    j["priv"] = priv.ToJSON();
+    j["ciphertext"] = ciphertext.ToJSON();
+    j["modifier"] = modifier.ToJSON();
+    return j;
+}
+
+
 } /* namespace operation */
 } /* namespace cryptofuzz */
