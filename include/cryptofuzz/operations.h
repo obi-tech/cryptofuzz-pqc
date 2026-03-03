@@ -1888,16 +1888,23 @@ class ECDH_Derive : public Operation {
 
 class KEM_GenerateKeyPair : public Operation {
     public:
-        const component::KEMType kemType;
+        const component::KEM_ID kemType;
+        const std::optional<component::Cleartext> seed;  // OPTIONAL deterministic seed
 
         KEM_GenerateKeyPair(Datasource& ds, component::Modifier modifier) :
             Operation(std::move(modifier)),
-            kemType(ds)
+            kemType(ds),
+            seed(ds.Get<bool>() ? std::make_optional<component::Cleartext>(ds) : std::nullopt)
         { }
 
         KEM_GenerateKeyPair(nlohmann::json json) :
             Operation(json["modifier"]),
-            kemType(json["kemType"])
+            kemType(json["kemType"]),
+            seed(
+                json["seed_enabled"].get<bool>() ?
+                    std::make_optional<component::Cleartext>(json["seed"]) :
+                    std::nullopt
+            )
         { }
 
         static size_t MaxOperations(void) { return 5; }
@@ -1907,31 +1914,47 @@ class KEM_GenerateKeyPair : public Operation {
         std::string GetAlgorithmString(void) const override {
             return repository::KEMToString(kemType.Get());
         }
+        
         inline bool operator==(const KEM_GenerateKeyPair& rhs) const {
             return
                 (kemType == rhs.kemType) &&
+                (seed == rhs.seed) &&
                 (modifier == rhs.modifier);
         }
+        
         void Serialize(Datasource& ds) const {
             kemType.Serialize(ds);
+            if ( seed != std::nullopt ) {
+                ds.Put<>(true);
+                seed->Serialize(ds);
+            } else {
+                ds.Put<>(false);
+            }
         }
 };
 
 class KEM_Encapsulate : public Operation {
     public:
-        const component::KEMType kemType;
-        const component::KEM_PublicKey pub;
+        const component::KEM_ID kemType;
+        const component::Cleartext publicKey;
+        const std::optional<component::Cleartext> seed;  // OPTIONAL deterministic seed
 
         KEM_Encapsulate(Datasource& ds, component::Modifier modifier) :
             Operation(std::move(modifier)),
             kemType(ds),
-            pub(ds)
+            publicKey(ds),
+            seed(ds.Get<bool>() ? std::make_optional<component::Cleartext>(ds) : std::nullopt)
         { }
 
         KEM_Encapsulate(nlohmann::json json) :
             Operation(json["modifier"]),
             kemType(json["kemType"]),
-            pub(json["pub"])
+            publicKey(json["publicKey"]),
+            seed(
+                json["seed_enabled"].get<bool>() ?
+                    std::make_optional<component::Cleartext>(json["seed"]) :
+                    std::nullopt
+            )
         { }
 
         static size_t MaxOperations(void) { return 5; }
@@ -1941,35 +1964,44 @@ class KEM_Encapsulate : public Operation {
         std::string GetAlgorithmString(void) const override {
             return repository::KEMToString(kemType.Get());
         }
+        
         inline bool operator==(const KEM_Encapsulate& rhs) const {
             return
                 (kemType == rhs.kemType) &&
-                (pub == rhs.pub) &&
+                (publicKey == rhs.publicKey) &&
+                (seed == rhs.seed) &&
                 (modifier == rhs.modifier);
         }
+        
         void Serialize(Datasource& ds) const {
             kemType.Serialize(ds);
-            pub.Serialize(ds);
+            publicKey.Serialize(ds);
+            if ( seed != std::nullopt ) {
+                ds.Put<>(true);
+                seed->Serialize(ds);
+            } else {
+                ds.Put<>(false);
+            }
         }
 };
 
 class KEM_Decapsulate : public Operation {
     public:
-        const component::KEMType kemType;
-        const component::KEM_PrivateKey priv;
-        const component::KEM_Ciphertext ciphertext;
+        const component::KEM_ID kemType;
+        const component::Cleartext privateKey;
+        const component::Cleartext ciphertext;
 
         KEM_Decapsulate(Datasource& ds, component::Modifier modifier) :
             Operation(std::move(modifier)),
             kemType(ds),
-            priv(ds),
+            privateKey(ds),
             ciphertext(ds)
         { }
 
         KEM_Decapsulate(nlohmann::json json) :
             Operation(json["modifier"]),
             kemType(json["kemType"]),
-            priv(json["priv"]),
+            privateKey(json["privateKey"]),
             ciphertext(json["ciphertext"])
         { }
 
@@ -1980,16 +2012,18 @@ class KEM_Decapsulate : public Operation {
         std::string GetAlgorithmString(void) const override {
             return repository::KEMToString(kemType.Get());
         }
+        
         inline bool operator==(const KEM_Decapsulate& rhs) const {
             return
                 (kemType == rhs.kemType) &&
-                (priv == rhs.priv) &&
+                (privateKey == rhs.privateKey) &&
                 (ciphertext == rhs.ciphertext) &&
                 (modifier == rhs.modifier);
         }
+        
         void Serialize(Datasource& ds) const {
             kemType.Serialize(ds);
-            priv.Serialize(ds);
+            privateKey.Serialize(ds);
             ciphertext.Serialize(ds);
         }
 };
