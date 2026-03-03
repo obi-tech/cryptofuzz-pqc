@@ -14,7 +14,7 @@ using DigestType = Type;
 using KDFType = Type;
 using CurveType = Type;
 using CalcOp = Type;
-using KEMType = Type;
+using KEM_ID = Type;
 
 using Modifier = Buffer;
 using Cleartext = Buffer;
