@@ -369,6 +369,20 @@ static uint64_t getRandomCalcOp(void) {
     }
 }
 
+static uint64_t getRandomKEMType(void) {
+    if ( !cryptofuzz_options->kemTypes.Empty() ) {
+        return cryptofuzz_options->kemTypes.At(PRNG());
+    } else {
+        // ML-KEM (Kyber) variants - expandable to other KEMs
+        static const uint64_t kemTypes[] = {
+            CF_KEM("ML-KEM-512"),
+            CF_KEM("ML-KEM-768"),
+            CF_KEM("ML-KEM-1024"),
+        };
+        return kemTypes[PRNG() % (sizeof(kemTypes) / sizeof(kemTypes[0]))];
+    }
+}
+
 static std::string get_BLS_PyECC_DST(void) {
     return "424c535f5349475f424c53313233383147325f584d443a5348412d3235365f535357555f524f5f504f505f";
 }
@@ -2729,6 +2743,69 @@ extern "C" size_t LLVMFuzzerCustomMutator(uint8_t* data, size_t size, size_t max
                     parameters["cleartext"] = cryptofuzz::util::DecToHex(getBignum(true), (PRNG() % 64) * 2);
 
                     cryptofuzz::operation::SR25519_Verify op(parameters);
+                    op.Serialize(dsOut2);
+                }
+                break;
+                        case    CF_OPERATION("KEM_GenerateKeyPair"):
+                {
+                    parameters["modifier"] = "";
+                    parameters["kemType"] = getRandomKEMType();
+                    
+                    // OPTIONAL: 50% deterministic seed for differential testing
+                    if ( getBool() ) {
+                        parameters["seed_enabled"] = true;
+                        parameters["seed"] = getBuffer(32);  // 32-byte seed
+                    } else {
+                        parameters["seed_enabled"] = false;
+                    }
+
+                    cryptofuzz::operation::KEM_GenerateKeyPair op(parameters);
+                    op.Serialize(dsOut2);
+                }
+                break;
+                
+            case    CF_OPERATION("KEM_Encapsulate"):
+                {
+                    parameters["modifier"] = "";
+                    parameters["kemType"] = getRandomKEMType();
+                    
+                    if ( Pool_KEM_PublicKey.Have() && getBool() == true ) {
+                        parameters["publicKey"] = Pool_KEM_PublicKey.Get();
+                    } else {
+                        parameters["publicKey"] = getBuffer(PRNG() % 2048);
+                    }
+                    
+                    // OPTIONAL: 50% deterministic seed for differential testing
+                    if ( getBool() ) {
+                        parameters["seed_enabled"] = true;
+                        parameters["seed"] = getBuffer(32);
+                    } else {
+                        parameters["seed_enabled"] = false;
+                    }
+
+                    cryptofuzz::operation::KEM_Encapsulate op(parameters);
+                    op.Serialize(dsOut2);
+                }
+                break;
+                
+            case    CF_OPERATION("KEM_Decapsulate"):
+                {
+                    parameters["modifier"] = "";
+                    parameters["kemType"] = getRandomKEMType();
+                    
+                    if ( Pool_KEM_PrivateKey.Have() && getBool() == true ) {
+                        parameters["privateKey"] = Pool_KEM_PrivateKey.Get();
+                    } else {
+                        parameters["privateKey"] = getBuffer(PRNG() % 4096);
+                    }
+                    
+                    if ( Pool_KEM_Ciphertext.Have() && getBool() == true ) {
+                        parameters["ciphertext"] = Pool_KEM_Ciphertext.Get();
+                    } else {
+                        parameters["ciphertext"] = getBuffer(PRNG() % 2048);
+                    }
+
+                    cryptofuzz::operation::KEM_Decapsulate op(parameters);
                     op.Serialize(dsOut2);
                 }
                 break;
