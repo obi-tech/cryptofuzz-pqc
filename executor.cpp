@@ -2838,6 +2838,114 @@ void ExecutorBase<ResultType, OperationType>::Run(Datasource& parentDs, const ui
     }
 }
 
+/* Specialization for operation::KEM_GenerateKeyPair */
+template<> 
+void ExecutorBase<component::KEM_KeyPair, operation::KEM_GenerateKeyPair>::compare(
+    const std::vector< std::pair<std::shared_ptr<Module>, operation::KEM_GenerateKeyPair> >& operations, 
+    const ResultSet& results, const uint8_t* data, const size_t size) const {
+    (void)operations;
+    (void)results;
+    (void)data;
+    (void)size;
+    // KEM key generation is non-deterministic, so don't compare results
+}
+
+template<> 
+void ExecutorBase<component::KEM_KeyPair, operation::KEM_GenerateKeyPair>::postprocess(
+    std::shared_ptr<Module> module, operation::KEM_GenerateKeyPair& op, 
+    const ExecutorBase<component::KEM_KeyPair, operation::KEM_GenerateKeyPair>::ResultPair& result) const {
+    (void)module;
+    (void)op;
+    (void)result;
+}
+
+template<> 
+std::optional<component::KEM_KeyPair> ExecutorBase<component::KEM_KeyPair, operation::KEM_GenerateKeyPair>::callModule(
+    std::shared_ptr<Module> module, operation::KEM_GenerateKeyPair& op) const {
+    return module->OpKEM_GenerateKeyPair(op);
+}
+
+/* Specialization for operation::KEM_Encapsulate */
+template<> 
+void ExecutorBase<component::KEM_Encapsulated, operation::KEM_Encapsulate>::compare(
+    const std::vector< std::pair<std::shared_ptr<Module>, operation::KEM_Encapsulate> >& operations, 
+    const ResultSet& results, const uint8_t* data, const size_t size) const {
+    (void)operations;
+    (void)results;
+    (void)data;
+    (void)size;
+    // KEM encapsulation is non-deterministic, so don't compare results
+}
+
+template<> 
+void ExecutorBase<component::KEM_Encapsulated, operation::KEM_Encapsulate>::postprocess(
+    std::shared_ptr<Module> module, operation::KEM_Encapsulate& op, 
+    const ExecutorBase<component::KEM_Encapsulated, operation::KEM_Encapsulate>::ResultPair& result) const {
+    (void)module;
+    (void)op;
+    (void)result;
+}
+
+template<> 
+std::optional<component::KEM_Encapsulated> ExecutorBase<component::KEM_Encapsulated, operation::KEM_Encapsulate>::callModule(
+    std::shared_ptr<Module> module, operation::KEM_Encapsulate& op) const {
+    return module->OpKEM_Encapsulate(op);
+}
+
+/* Specialization for operation::KEM_Decapsulate */
+template<> 
+void ExecutorBase<component::KEM_SharedSecret, operation::KEM_Decapsulate>::compare(
+    const std::vector< std::pair<std::shared_ptr<Module>, operation::KEM_Decapsulate> >& operations, 
+    const ResultSet& results, const uint8_t* data, const size_t size) const {
+    (void)operations;
+    (void)data;
+    (void)size;
+    
+    // KEM decapsulation IS deterministic - same ciphertext + private key = same shared secret
+    if ( results.size() < 2 ) {
+        return;
+    }
+
+    bool same = true;
+    for (size_t i = 1; i < results.size(); i++) {
+        if ( results[0] != results[i] ) {
+            same = false;
+            break;
+        }
+    }
+
+    if ( same == false ) {
+        printf("KEM_Decapsulate result mismatch:\n");
+        std::vector<std::string> moduleNames;
+        for (size_t i = 0; i < results.size(); i++) {
+            std::cout << "Module " << operations[i].first->name << ":\n";
+            std::cout << util::ToString(results[i].second.value()) << "\n";
+            moduleNames.push_back(operations[i].first->name);
+        }
+        abort(
+                moduleNames,
+                operations[0].second.Name(),
+                operations[0].second.GetAlgorithmString(),
+                "KEM_Decapsulate result mismatch"
+        );
+    }
+}
+
+template<> 
+void ExecutorBase<component::KEM_SharedSecret, operation::KEM_Decapsulate>::postprocess(
+    std::shared_ptr<Module> module, operation::KEM_Decapsulate& op, 
+    const ExecutorBase<component::KEM_SharedSecret, operation::KEM_Decapsulate>::ResultPair& result) const {
+    (void)module;
+    (void)op;
+    (void)result;
+}
+
+template<> 
+std::optional<component::KEM_SharedSecret> ExecutorBase<component::KEM_SharedSecret, operation::KEM_Decapsulate>::callModule(
+    std::shared_ptr<Module> module, operation::KEM_Decapsulate& op) const {
+    return module->OpKEM_Decapsulate(op);
+}
+
 /* Explicit template instantiation */
 template class ExecutorBase<component::Digest, operation::Digest>;
 template class ExecutorBase<component::MAC, operation::HMAC>;
@@ -2924,5 +3032,9 @@ template class ExecutorBase<component::G2, operation::BLS_G2_Neg>;
 template class ExecutorBase<component::G1, operation::BLS_G1_MultiExp>;
 template class ExecutorBase<Buffer, operation::Misc>;
 template class ExecutorBase<bool, operation::SR25519_Verify>;
+template class ExecutorBase<component::KEM_KeyPair, operation::KEM_GenerateKeyPair>;
+template class ExecutorBase<component::KEM_Encapsulated, operation::KEM_Encapsulate>;
+template class ExecutorBase<component::KEM_SharedSecret, operation::KEM_Decapsulate>;
+
 
 } /* namespace cryptofuzz */
