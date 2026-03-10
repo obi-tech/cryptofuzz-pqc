@@ -162,3 +162,8 @@ typedef struct {
 } type_DoubleString;
 
 extern MutatorPool<type_DoubleString, 64> Pool_DSA_PubPriv;
+
+extern MutatorPool<std::string, cryptofuzz::config::kMutatorPoolSize> Pool_KEM_PublicKey;
+extern MutatorPool<std::string, cryptofuzz::config::kMutatorPoolSize> Pool_KEM_PrivateKey;
+extern MutatorPool<std::string, cryptofuzz::config::kMutatorPoolSize> Pool_KEM_Ciphertext;
+extern MutatorPool<std::string, cryptofuzz::config::kMutatorPoolSize> Pool_KEM_SharedSecret;
