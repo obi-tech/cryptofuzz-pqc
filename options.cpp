@@ -160,6 +160,32 @@ Options::Options(const int argc, char** argv, const std::vector<std::string> ext
                     exit(1);
                 }
             }
+
+        } else if ( !parts.empty() && parts[0] == "--kemtypes" ) {
+            if ( parts.size() != 2 ) {
+                std::cout << "Expected argument after --kemtypes=" << std::endl;
+                exit(1);
+            }
+
+            std::vector<std::string> kemStrings;
+            boost::split(kemStrings, parts[1], boost::is_any_of(","));
+
+            for (const auto& curKemStr : kemStrings) {
+                bool found = false;
+                for (size_t i = 0; i < (sizeof(repository::KEMLUT) / sizeof(repository::KEMLUT[0])); i++) {
+                    if ( boost::iequals(curKemStr, std::string(repository::KEMLUT[i].name)) ) {
+                        this->kemTypes.Add(repository::KEMLUT[i].id);
+                        found = true;
+                        break;
+                    }
+                }
+
+                if ( found == false ) {
+                    std::cout << "Undefined KEM type: " << curKemStr << std::endl;
+                    exit(1);
+                }
+            }
+
         } else if ( !parts.empty() && parts[0] == "--force-module" ) {
             if ( parts.size() != 2 ) {
                 std::cout << "Expected argument after --force-module=" << std::endl;
