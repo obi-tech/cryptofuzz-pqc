@@ -2,6 +2,7 @@
 #include "deterministic_rng.h" 
 #include <cryptofuzz/util.h>
 #include <cryptofuzz/repository.h>
+#include <fuzzing/datasource/datasource.hpp>
 #include <cstring>
 #include <cstdlib>
 #include <memory>
