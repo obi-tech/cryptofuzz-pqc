@@ -285,6 +285,18 @@ class CalcOpTable(Table):
 
         return tableEntry
 
+class KEMTable(Table):
+    def __init__(self):
+        tableDecl = [
+        ]
+
+        super(KEMTable, self).__init__('KEM', tableDecl)
+
+    def getTableEntryList(self, index):
+        tableEntry = []
+
+        return tableEntry
+
 modules = ModuleTable()
 # lint sort start
 modules.Add( Module("Aleo") )
@@ -355,6 +367,7 @@ modules.Add( Module("libecc") )
 modules.Add( Module("libff") )
 modules.Add( Module("libgcrypt") )
 modules.Add( Module("libgmp") )
+modules.Add( Module("liboqs") )
 modules.Add( Module("libsodium") )
 modules.Add( Module("libtomcrypt") )
 modules.Add( Module("libtommath") )
@@ -495,6 +508,9 @@ operations.Add( Operation("KDF_SRTP") )
 operations.Add( Operation("KDF_SSH") )
 operations.Add( Operation("KDF_TLS1_PRF") )
 operations.Add( Operation("KDF_X963") )
+operations.Add( Operation("KEM_Decapsulate") )
+operations.Add( Operation("KEM_Encapsulate") )
+operations.Add( Operation("KEM_GenerateKeyPair") )
 operations.Add( Operation("Misc") )
 operations.Add( Operation("SR25519_Verify") )
 operations.Add( Operation("Schnorr_Sign") )
@@ -502,10 +518,6 @@ operations.Add( Operation("Schnorr_Verify") )
 operations.Add( Operation("SymmetricDecrypt") )
 operations.Add( Operation("SymmetricEncrypt") )
 operations.Add( Operation("UMAC") )
-operations.Add( Operation("KEM_GenerateKeyPair") )
-operations.Add( Operation("KEM_Encapsulate") )
-operations.Add( Operation("KEM_Decapsulate") )
-
 # lint sort end
 
 ciphers = CipherTable()
@@ -1825,7 +1837,14 @@ calcops.Add( CalcOp("Xor(A,B)") )
 calcops.Add( CalcOp("Zero()") )
 # lint sort end
 
-tables = [modules, operations, ciphers, digests, ecc_curves, calcops]
+kemtypes = KEMTable()
+# lint sort start
+kemtypes.Add( Component("ML-KEM-1024") )
+kemtypes.Add( Component("ML-KEM-512") )
+kemtypes.Add( Component("ML-KEM-768") )
+# lint sort end
+
+tables = [modules, operations, ciphers, digests, ecc_curves, calcops, kemtypes]
 
 with open('repository_tbl.h', 'w') as fp:
     for table in tables:
