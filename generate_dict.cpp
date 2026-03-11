@@ -60,7 +60,7 @@ int main(void)
     writeMap(fp, CipherLUTMap);
     writeMap(fp, ECC_CurveLUTMap);
     writeMap(fp, CalcOpLUTMap);
-
+    writeMap(fp, KEMLUTMap);
     {
         const std::vector<uint8_t> bufferSizes = {1, 2, 4, 8, 12, 16, 32};
         for (const auto& size : bufferSizes) {
