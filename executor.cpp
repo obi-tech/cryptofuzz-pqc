@@ -2839,24 +2839,67 @@ void ExecutorBase<ResultType, OperationType>::Run(Datasource& parentDs, const ui
 }
 
 /* Specialization for operation::KEM_GenerateKeyPair */
-template<> 
+template<>
 void ExecutorBase<component::KEM_KeyPair, operation::KEM_GenerateKeyPair>::compare(
-    const std::vector< std::pair<std::shared_ptr<Module>, operation::KEM_GenerateKeyPair> >& operations, 
+    const std::vector< std::pair<std::shared_ptr<Module>, operation::KEM_GenerateKeyPair> >& operations,
     const ResultSet& results, const uint8_t* data, const size_t size) const {
-    (void)operations;
-    (void)results;
     (void)data;
     (void)size;
-    // KEM key generation is non-deterministic, so don't compare results
+
+    if ( results.size() < 2 ) {
+        return;
+    }
+
+    // Only compare when all modules were given the same non-empty seed
+    bool allSeedsEqual = true;
+    for (size_t i = 0; i < operations.size(); i++) {
+        if ( operations[i].second.seed == std::nullopt ||
+             operations[i].second.seed->GetSize() == 0 ||
+             !(operations[i].second.seed == operations[0].second.seed) ) {
+            allSeedsEqual = false;
+            break;
+        }
+    }
+    if ( !allSeedsEqual ) {
+        return;
+    }
+
+    bool same = true;
+    for (size_t i = 1; i < results.size(); i++) {
+        if ( results[0] != results[i] ) {
+            same = false;
+            break;
+        }
+    }
+
+    if ( same == false ) {
+        printf("KEM_GenerateKeyPair result mismatch:\n");
+        std::vector<std::string> moduleNames;
+        for (size_t i = 0; i < results.size(); i++) {
+            std::cout << "Module " << operations[i].first->name << ":\n";
+            std::cout << util::ToString(results[i].second.value()) << "\n";
+            moduleNames.push_back(operations[i].first->name);
+        }
+        abort(
+                moduleNames,
+                operations[0].second.Name(),
+                operations[0].second.GetAlgorithmString(),
+                "KEM_GenerateKeyPair result mismatch"
+        );
+    }
 }
 
 template<> 
 void ExecutorBase<component::KEM_KeyPair, operation::KEM_GenerateKeyPair>::postprocess(
-    std::shared_ptr<Module> module, operation::KEM_GenerateKeyPair& op, 
+    std::shared_ptr<Module> module, operation::KEM_GenerateKeyPair& op,
     const ExecutorBase<component::KEM_KeyPair, operation::KEM_GenerateKeyPair>::ResultPair& result) const {
     (void)module;
     (void)op;
-    (void)result;
+
+    if ( result.second != std::nullopt ) {
+        Pool_KEM_PublicKey.Set(result.second->pub.ToHex());
+        Pool_KEM_PrivateKey.Set(result.second->priv.ToHex());
+    }
 }
 
 template<> 
@@ -2866,24 +2909,67 @@ std::optional<component::KEM_KeyPair> ExecutorBase<component::KEM_KeyPair, opera
 }
 
 /* Specialization for operation::KEM_Encapsulate */
-template<> 
+template<>
 void ExecutorBase<component::KEM_Encapsulated, operation::KEM_Encapsulate>::compare(
-    const std::vector< std::pair<std::shared_ptr<Module>, operation::KEM_Encapsulate> >& operations, 
+    const std::vector< std::pair<std::shared_ptr<Module>, operation::KEM_Encapsulate> >& operations,
     const ResultSet& results, const uint8_t* data, const size_t size) const {
-    (void)operations;
-    (void)results;
     (void)data;
     (void)size;
-    // KEM encapsulation is non-deterministic, so don't compare results
+
+    if ( results.size() < 2 ) {
+        return;
+    }
+
+    // Only compare when all modules were given the same non-empty seed
+    bool allSeedsEqual = true;
+    for (size_t i = 0; i < operations.size(); i++) {
+        if ( operations[i].second.seed == std::nullopt ||
+             operations[i].second.seed->GetSize() == 0 ||
+             !(operations[i].second.seed == operations[0].second.seed) ) {
+            allSeedsEqual = false;
+            break;
+        }
+    }
+    if ( !allSeedsEqual ) {
+        return;
+    }
+
+    bool same = true;
+    for (size_t i = 1; i < results.size(); i++) {
+        if ( results[0] != results[i] ) {
+            same = false;
+            break;
+        }
+    }
+
+    if ( same == false ) {
+        printf("KEM_Encapsulate result mismatch:\n");
+        std::vector<std::string> moduleNames;
+        for (size_t i = 0; i < results.size(); i++) {
+            std::cout << "Module " << operations[i].first->name << ":\n";
+            std::cout << util::ToString(results[i].second.value()) << "\n";
+            moduleNames.push_back(operations[i].first->name);
+        }
+        abort(
+                moduleNames,
+                operations[0].second.Name(),
+                operations[0].second.GetAlgorithmString(),
+                "KEM_Encapsulate result mismatch"
+        );
+    }
 }
 
 template<> 
 void ExecutorBase<component::KEM_Encapsulated, operation::KEM_Encapsulate>::postprocess(
-    std::shared_ptr<Module> module, operation::KEM_Encapsulate& op, 
+    std::shared_ptr<Module> module, operation::KEM_Encapsulate& op,
     const ExecutorBase<component::KEM_Encapsulated, operation::KEM_Encapsulate>::ResultPair& result) const {
     (void)module;
     (void)op;
-    (void)result;
+
+    if ( result.second != std::nullopt ) {
+        Pool_KEM_Ciphertext.Set(result.second->ciphertext.ToHex());
+        Pool_KEM_SharedSecret.Set(result.second->shared_secret.ToHex());
+    }
 }
 
 template<> 
