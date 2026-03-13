@@ -460,6 +460,24 @@ std::string ToString(const component::Key3& val) {
     return ret;
 }
 
+std::string ToString(const component::KEM_KeyPair& val) {
+    std::string ret;
+    ret += "Public key:\n";
+    ret += util::HexDump(val.pub.Get());
+    ret += "\nPrivate key:\n";
+    ret += util::HexDump(val.priv.Get());
+    return ret;
+}
+
+std::string ToString(const component::KEM_Encapsulated& val) {
+    std::string ret;
+    ret += "Ciphertext:\n";
+    ret += util::HexDump(val.ciphertext.Get());
+    ret += "\nShared secret:\n";
+    ret += util::HexDump(val.shared_secret.Get());
+    return ret;
+}
+
 nlohmann::json ToJSON(const Buffer& buffer) {
     return buffer.ToJSON();
 }
@@ -534,6 +552,14 @@ nlohmann::json ToJSON(const component::Key3& val) {
         val[1].ToJSON(),
         val[2].ToJSON(),
     };
+}
+
+nlohmann::json ToJSON(const component::KEM_KeyPair& val) {
+    return val.ToJSON();
+}
+
+nlohmann::json ToJSON(const component::KEM_Encapsulated& val) {
+    return val.ToJSON();
 }
 
 class HaveBadPointer {
