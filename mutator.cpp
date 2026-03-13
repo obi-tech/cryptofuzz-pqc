@@ -2770,9 +2770,9 @@ extern "C" size_t LLVMFuzzerCustomMutator(uint8_t* data, size_t size, size_t max
                     parameters["kemType"] = getRandomKEMType();
                     
                     if ( Pool_KEM_PublicKey.Have() && getBool() == true ) {
-                        parameters["publicKey"] = Pool_KEM_PublicKey.Get();
+                        parameters["pub"] = Pool_KEM_PublicKey.Get();
                     } else {
-                        parameters["publicKey"] = getBuffer(PRNG() % 2048);
+                        parameters["pub"] = getBuffer(PRNG() % 2048);
                     }
                     
                     // OPTIONAL: 50% deterministic seed for differential testing
@@ -2794,9 +2794,9 @@ extern "C" size_t LLVMFuzzerCustomMutator(uint8_t* data, size_t size, size_t max
                     parameters["kemType"] = getRandomKEMType();
                     
                     if ( Pool_KEM_PrivateKey.Have() && getBool() == true ) {
-                        parameters["privateKey"] = Pool_KEM_PrivateKey.Get();
+                        parameters["priv"] = Pool_KEM_PrivateKey.Get();
                     } else {
-                        parameters["privateKey"] = getBuffer(PRNG() % 4096);
+                        parameters["priv"] = getBuffer(PRNG() % 4096);
                     }
                     
                     if ( Pool_KEM_Ciphertext.Have() && getBool() == true ) {

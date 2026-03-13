@@ -1936,20 +1936,20 @@ class KEM_GenerateKeyPair : public Operation {
 class KEM_Encapsulate : public Operation {
     public:
         const component::KEM_ID kemType;
-        const component::Cleartext publicKey;
+        const component::Cleartext pub;
         const std::optional<component::Cleartext> seed;  // OPTIONAL deterministic seed
 
         KEM_Encapsulate(Datasource& ds, component::Modifier modifier) :
             Operation(std::move(modifier)),
             kemType(ds),
-            publicKey(ds),
+            pub(ds),
             seed(ds.Get<bool>() ? std::make_optional<component::Cleartext>(ds) : std::nullopt)
         { }
 
         KEM_Encapsulate(nlohmann::json json) :
             Operation(json["modifier"]),
             kemType(json["kemType"]),
-            publicKey(json["publicKey"]),
+            pub(json["pub"]),
             seed(
                 json["seed_enabled"].get<bool>() ?
                     std::make_optional<component::Cleartext>(json["seed"]) :
@@ -1968,14 +1968,14 @@ class KEM_Encapsulate : public Operation {
         inline bool operator==(const KEM_Encapsulate& rhs) const {
             return
                 (kemType == rhs.kemType) &&
-                (publicKey == rhs.publicKey) &&
+                (pub == rhs.pub) &&
                 (seed == rhs.seed) &&
                 (modifier == rhs.modifier);
         }
-        
+
         void Serialize(Datasource& ds) const {
             kemType.Serialize(ds);
-            publicKey.Serialize(ds);
+            pub.Serialize(ds);
             if ( seed != std::nullopt ) {
                 ds.Put<>(true);
                 seed->Serialize(ds);
@@ -1988,20 +1988,20 @@ class KEM_Encapsulate : public Operation {
 class KEM_Decapsulate : public Operation {
     public:
         const component::KEM_ID kemType;
-        const component::Cleartext privateKey;
+        const component::Cleartext priv;
         const component::Cleartext ciphertext;
 
         KEM_Decapsulate(Datasource& ds, component::Modifier modifier) :
             Operation(std::move(modifier)),
             kemType(ds),
-            privateKey(ds),
+            priv(ds),
             ciphertext(ds)
         { }
 
         KEM_Decapsulate(nlohmann::json json) :
             Operation(json["modifier"]),
             kemType(json["kemType"]),
-            privateKey(json["privateKey"]),
+            priv(json["priv"]),
             ciphertext(json["ciphertext"])
         { }
 
@@ -2012,18 +2012,18 @@ class KEM_Decapsulate : public Operation {
         std::string GetAlgorithmString(void) const override {
             return repository::KEMToString(kemType.Get());
         }
-        
+
         inline bool operator==(const KEM_Decapsulate& rhs) const {
             return
                 (kemType == rhs.kemType) &&
-                (privateKey == rhs.privateKey) &&
+                (priv == rhs.priv) &&
                 (ciphertext == rhs.ciphertext) &&
                 (modifier == rhs.modifier);
         }
-        
+
         void Serialize(Datasource& ds) const {
             kemType.Serialize(ds);
-            privateKey.Serialize(ds);
+            priv.Serialize(ds);
             ciphertext.Serialize(ds);
         }
 };
