@@ -990,6 +990,21 @@ void test(const operation::SR25519_Verify& op, const std::optional<bool>& result
     (void)result;
 }
 
+void test(const operation::KEM_GenerateKeyPair& op, const std::optional<component::KEM_KeyPair>& result) {
+    (void)op;
+    (void)result;
+}
+
+void test(const operation::KEM_Encapsulate& op, const std::optional<component::KEM_Encapsulated>& result) {
+    (void)op;
+    (void)result;
+}
+
+void test(const operation::KEM_Decapsulate& op, const std::optional<component::KEM_SharedSecret>& result) {
+    (void)op;
+    (void)result;
+}
+
 namespace BignumCalc {
     static void Abort(const std::string& message, const std::string& opStr) {
         std::cout << "BignumCalc ( " << opStr << " ): " << message << std::endl;
