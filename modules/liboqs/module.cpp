@@ -75,9 +75,10 @@ std::optional<component::KEM_KeyPair> liboqs::OpKEM_GenerateKeyPair(operation::K
     }
     
     // Create return value
-    component::KEM_PublicKey pub(public_key, kem->length_public_key);
-    component::KEM_PrivateKey priv(secret_key, kem->length_secret_key);
-    ret = component::KEM_KeyPair(pub, priv);
+    ret = component::KEM_KeyPair(
+        component::KEM_PublicKey(public_key, kem->length_public_key),
+        component::KEM_PrivateKey(secret_key, kem->length_secret_key)
+    );
 
 end:
     util::free(public_key);
@@ -121,9 +122,10 @@ std::optional<component::KEM_Encapsulated> liboqs::OpKEM_Encapsulate(operation::
     }
     
     // Create return value
-    component::KEM_Ciphertext ct(ciphertext, kem->length_ciphertext);
-    component::KEM_SharedSecret ss(shared_secret, kem->length_shared_secret);
-    ret = component::KEM_Encapsulated(ct, ss);
+    ret = component::KEM_Encapsulated(
+        component::KEM_Ciphertext(ciphertext, kem->length_ciphertext),
+        component::KEM_SharedSecret(shared_secret, kem->length_shared_secret)
+    );
 
 end:
     util::free(ciphertext);
