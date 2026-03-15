@@ -7,7 +7,11 @@ module.a: module.o deterministic_rng.o
 	rm -rf module.a
 	rm -rf tmp/
 	mkdir tmp/
-	cd tmp && ar x $(LIBOQS_A_PATH)
+	cd tmp && \
+	ar t $(LIBOQS_A_PATH) | awk '{count[$$1]++; print count[$$1], $$1}' | \
+	while read n member; do \
+	    ar xN $$n $(LIBOQS_A_PATH) $$member && mv $$member $${n}_$$member; \
+	done
 	ar rcs module.a module.o deterministic_rng.o tmp/*
 	ranlib module.a
 
