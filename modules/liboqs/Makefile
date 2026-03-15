@@ -1,6 +1,7 @@
 all: module.a
 
 CXXFLAGS += -Wall -Wextra -Werror -std=c++17 -I ../../include -I ../../fuzzing-headers/include -DFUZZING_HEADERS_NO_IMPL
+LIBOQS_INTERNAL_A_PATH = $(patsubst %liboqs.a,%liboqs-internal.a,$(LIBOQS_A_PATH))
 
 module.a: module.o deterministic_rng.o
 	test $(LIBOQS_A_PATH)
@@ -12,6 +13,7 @@ module.a: module.o deterministic_rng.o
 	while read n member; do \
 	    ar xN $$n $(LIBOQS_A_PATH) $$member && mv $$member $${n}_$$member; \
 	done
+	cd tmp && ar x $(LIBOQS_INTERNAL_A_PATH)
 	ar rcs module.a module.o deterministic_rng.o tmp/*
 	ranlib module.a
 
