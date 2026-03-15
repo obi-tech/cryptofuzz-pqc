@@ -1,5 +1,7 @@
 #include "deterministic_rng.h"
+extern "C" {
 #include <oqs/rand_nist.h>
+}
 #include <string.h>
 
 namespace cryptofuzz {
