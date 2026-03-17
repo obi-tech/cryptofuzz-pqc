@@ -186,6 +186,31 @@ Options::Options(const int argc, char** argv, const std::vector<std::string> ext
                 }
             }
 
+        } else if ( !parts.empty() && parts[0] == "--mldsatypes" ) {
+            if ( parts.size() != 2 ) {
+                std::cout << "Expected argument after --mldsatypes=" << std::endl;
+                exit(1);
+            }
+
+            std::vector<std::string> mldsaStrings;
+            boost::split(mldsaStrings, parts[1], boost::is_any_of(","));
+
+            for (const auto& curMldsaStr : mldsaStrings) {
+                bool found = false;
+                for (size_t i = 0; i < (sizeof(repository::MLDSALUT) / sizeof(repository::MLDSALUT[0])); i++) {
+                    if ( boost::iequals(curMldsaStr, std::string(repository::MLDSALUT[i].name)) ) {
+                        this->mldsaTypes.Add(repository::MLDSALUT[i].id);
+                        found = true;
+                        break;
+                    }
+                }
+
+                if ( found == false ) {
+                    std::cout << "Undefined ML-DSA type: " << curMldsaStr << std::endl;
+                    exit(1);
+                }
+            }
+
         } else if ( !parts.empty() && parts[0] == "--force-module" ) {
             if ( parts.size() != 2 ) {
                 std::cout << "Expected argument after --force-module=" << std::endl;
