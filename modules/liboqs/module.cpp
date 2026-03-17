@@ -41,6 +41,26 @@ namespace {
         }
         return OQS_KEM_new(alg_name);
     }
+
+    // Helper function to map Cryptofuzz ML-DSA types to liboqs algorithm names
+    const char* mldsaTypeToOQSAlg(uint64_t mldsaType) {
+        if (mldsaType == CF_MLDSA("ML-DSA-44")) {
+            return OQS_SIG_alg_ml_dsa_44;
+        } else if (mldsaType == CF_MLDSA("ML-DSA-65")) {
+            return OQS_SIG_alg_ml_dsa_65;
+        } else if (mldsaType == CF_MLDSA("ML-DSA-87")) {
+            return OQS_SIG_alg_ml_dsa_87;
+        }
+        return nullptr;
+    }
+
+    OQS_SIG* getSIG(uint64_t mldsaType) {
+        const char* alg_name = mldsaTypeToOQSAlg(mldsaType);
+        if (alg_name == nullptr) {
+            return nullptr;
+        }
+        return OQS_SIG_new(alg_name);
+    }
 }
 
 // KEM Operations with Deterministic RNG Support
@@ -163,6 +183,139 @@ end:
     util::free(shared_secret);
     OQS_KEM_free(kem);
     
+    return ret;
+}
+
+// ML-DSA Operations with Deterministic RNG Support
+std::optional<component::MLDSA_KeyPair> liboqs::OpMLDSA_GenerateKeyPair(operation::MLDSA_GenerateKeyPair& op) {
+    std::optional<component::MLDSA_KeyPair> ret = std::nullopt;
+
+    OQS_SIG* sig = nullptr;
+    uint8_t* public_key = nullptr;
+    uint8_t* secret_key = nullptr;
+
+    // Get the SIG algorithm
+    CF_CHECK_NE(sig = getSIG(op.mldsaType.Get()), nullptr);
+
+    // Allocate key buffers
+    public_key = util::malloc(sig->length_public_key);
+    secret_key = util::malloc(sig->length_secret_key);
+
+    // Check if deterministic seed is provided
+    if ( op.seed != std::nullopt && op.seed->GetSize() > 0 ) {
+        // DETERMINISTIC MODE for differential testing
+        liboqs_detail::seed_deterministic_rng(op.seed->GetPtr(nullptr), op.seed->GetSize());
+        OQS_randombytes_custom_algorithm(&liboqs_detail::deterministic_randombytes);
+    }
+
+    // Generate keypair
+    CF_CHECK_EQ(OQS_SIG_keypair(sig, public_key, secret_key), OQS_SUCCESS);
+
+    // Restore original RNG if we used deterministic
+    if ( op.seed != std::nullopt && op.seed->GetSize() > 0 ) {
+        OQS_randombytes_custom_algorithm(nullptr);
+        liboqs_detail::cleanup_deterministic_rng();
+    }
+
+    // Create return value
+    ret = component::MLDSA_KeyPair(
+        component::MLDSA_PublicKey(public_key, sig->length_public_key),
+        component::MLDSA_PrivateKey(secret_key, sig->length_secret_key)
+    );
+
+end:
+    util::free(public_key);
+    util::free(secret_key);
+    OQS_SIG_free(sig);
+
+    return ret;
+}
+
+std::optional<component::MLDSA_Signature> liboqs::OpMLDSA_Sign(operation::MLDSA_Sign& op) {
+    std::optional<component::MLDSA_Signature> ret = std::nullopt;
+
+    OQS_SIG* sig = nullptr;
+    uint8_t* signature = nullptr;
+    size_t sig_len = 0;
+
+    // Get the SIG algorithm
+    CF_CHECK_NE(sig = getSIG(op.mldsaType.Get()), nullptr);
+
+    // Validate private key size
+    CF_CHECK_EQ(op.priv.GetSize(), sig->length_secret_key);
+
+    // Allocate signature buffer
+    signature = util::malloc(sig->length_signature);
+
+    // DETERMINISTIC MODE: always seed from priv bytes for reproducible signing
+    liboqs_detail::seed_deterministic_rng(op.priv.GetPtr(nullptr), op.priv.GetSize());
+    OQS_randombytes_custom_algorithm(&liboqs_detail::deterministic_randombytes);
+
+    // Sign the message (use context variant if context is provided)
+    if ( op.context != std::nullopt ) {
+        CF_CHECK_EQ(sig->sign_with_ctx_str(
+            signature, &sig_len,
+            op.message.GetPtr(nullptr), op.message.GetSize(),
+            op.context->GetPtr(nullptr), op.context->GetSize(),
+            op.priv.GetPtr(nullptr)
+        ), OQS_SUCCESS);
+    } else {
+        CF_CHECK_EQ(sig->sign(
+            signature, &sig_len,
+            op.message.GetPtr(nullptr), op.message.GetSize(),
+            op.priv.GetPtr(nullptr)
+        ), OQS_SUCCESS);
+    }
+
+    // Restore original RNG
+    OQS_randombytes_custom_algorithm(nullptr);
+    liboqs_detail::cleanup_deterministic_rng();
+
+    // Create return value
+    ret = component::MLDSA_Signature(signature, sig_len);
+
+end:
+    util::free(signature);
+    OQS_SIG_free(sig);
+
+    return ret;
+}
+
+std::optional<bool> liboqs::OpMLDSA_Verify(operation::MLDSA_Verify& op) {
+    std::optional<bool> ret = std::nullopt;
+
+    OQS_SIG* sig = nullptr;
+
+    // Get the SIG algorithm
+    CF_CHECK_NE(sig = getSIG(op.mldsaType.Get()), nullptr);
+
+    // Validate public key size
+    CF_CHECK_EQ(op.pub.GetSize(), sig->length_public_key);
+
+    {
+        // Verify the signature (use context variant if context is provided)
+        OQS_STATUS result;
+        if ( op.context != std::nullopt ) {
+            result = sig->verify_with_ctx_str(
+                op.message.GetPtr(nullptr), op.message.GetSize(),
+                op.signature.GetPtr(nullptr), op.signature.GetSize(),
+                op.context->GetPtr(nullptr), op.context->GetSize(),
+                op.pub.GetPtr(nullptr)
+            );
+        } else {
+            result = sig->verify(
+                op.message.GetPtr(nullptr), op.message.GetSize(),
+                op.signature.GetPtr(nullptr), op.signature.GetSize(),
+                op.pub.GetPtr(nullptr)
+            );
+        }
+
+        ret = (result == OQS_SUCCESS);
+    }
+
+end:
+    OQS_SIG_free(sig);
+
     return ret;
 }
 
