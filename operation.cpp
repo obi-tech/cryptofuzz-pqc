@@ -2455,5 +2455,72 @@ nlohmann::json KEM_Decapsulate::ToJSON(void) const {
 }
 
 
+std::string MLDSA_GenerateKeyPair::Name(void) const {
+    return "MLDSA_GenerateKeyPair";
+}
+
+std::string MLDSA_GenerateKeyPair::ToString(void) const {
+    std::stringstream ss;
+    ss << "operation name: MLDSA_GenerateKeyPair" << std::endl;
+    ss << "mldsa type: " << repository::MLDSAToString(mldsaType.Get()) << std::endl;
+    return ss.str();
+}
+
+nlohmann::json MLDSA_GenerateKeyPair::ToJSON(void) const {
+    nlohmann::json j;
+    j["operation"] = "MLDSA_GenerateKeyPair";
+    j["mldsaType"] = mldsaType.ToJSON();
+    j["modifier"] = modifier.ToJSON();
+    return j;
+}
+
+std::string MLDSA_Sign::Name(void) const {
+    return "MLDSA_Sign";
+}
+
+std::string MLDSA_Sign::ToString(void) const {
+    std::stringstream ss;
+    ss << "operation name: MLDSA_Sign" << std::endl;
+    ss << "mldsa type: " << repository::MLDSAToString(mldsaType.Get()) << std::endl;
+    ss << "private key: " << util::HexDump(priv.Get()) << std::endl;
+    ss << "message: " << util::HexDump(message.Get()) << std::endl;
+    return ss.str();
+}
+
+nlohmann::json MLDSA_Sign::ToJSON(void) const {
+    nlohmann::json j;
+    j["operation"] = "MLDSA_Sign";
+    j["mldsaType"] = mldsaType.ToJSON();
+    j["priv"] = priv.ToJSON();
+    j["message"] = message.ToJSON();
+    j["modifier"] = modifier.ToJSON();
+    return j;
+}
+
+std::string MLDSA_Verify::Name(void) const {
+    return "MLDSA_Verify";
+}
+
+std::string MLDSA_Verify::ToString(void) const {
+    std::stringstream ss;
+    ss << "operation name: MLDSA_Verify" << std::endl;
+    ss << "mldsa type: " << repository::MLDSAToString(mldsaType.Get()) << std::endl;
+    ss << "public key: " << util::HexDump(pub.Get()) << std::endl;
+    ss << "message: " << util::HexDump(message.Get()) << std::endl;
+    ss << "signature: " << util::HexDump(signature.Get()) << std::endl;
+    return ss.str();
+}
+
+nlohmann::json MLDSA_Verify::ToJSON(void) const {
+    nlohmann::json j;
+    j["operation"] = "MLDSA_Verify";
+    j["mldsaType"] = mldsaType.ToJSON();
+    j["pub"] = pub.ToJSON();
+    j["message"] = message.ToJSON();
+    j["signature"] = signature.ToJSON();
+    j["modifier"] = modifier.ToJSON();
+    return j;
+}
+
 } /* namespace operation */
 } /* namespace cryptofuzz */
