@@ -2028,6 +2028,172 @@ class KEM_Decapsulate : public Operation {
         }
 };
 
+class MLDSA_GenerateKeyPair : public Operation {
+    public:
+        const component::MLDSA_ID mldsaType;
+        const std::optional<component::Cleartext> seed;  // OPTIONAL 32-byte deterministic seed
+
+        MLDSA_GenerateKeyPair(Datasource& ds, component::Modifier modifier) :
+            Operation(std::move(modifier)),
+            mldsaType(ds),
+            seed(ds.Get<bool>() ? std::make_optional<component::Cleartext>(ds) : std::nullopt)
+        { }
+
+        MLDSA_GenerateKeyPair(nlohmann::json json) :
+            Operation(json["modifier"]),
+            mldsaType(json["mldsaType"]),
+            seed(
+                json["seed_enabled"].get<bool>() ?
+                    std::make_optional<component::Cleartext>(json["seed"]) :
+                    std::nullopt
+            )
+        { }
+
+        static size_t MaxOperations(void) { return 5; }
+        std::string Name(void) const override;
+        std::string ToString(void) const override;
+        nlohmann::json ToJSON(void) const override;
+        std::string GetAlgorithmString(void) const override {
+            return repository::MLDSAToString(mldsaType.Get());
+        }
+
+        inline bool operator==(const MLDSA_GenerateKeyPair& rhs) const {
+            return
+                (mldsaType == rhs.mldsaType) &&
+                (seed == rhs.seed) &&
+                (modifier == rhs.modifier);
+        }
+
+        void Serialize(Datasource& ds) const {
+            mldsaType.Serialize(ds);
+            if ( seed != std::nullopt ) {
+                ds.Put<>(true);
+                seed->Serialize(ds);
+            } else {
+                ds.Put<>(false);
+            }
+        }
+};
+
+class MLDSA_Sign : public Operation {
+    public:
+        const component::MLDSA_ID mldsaType;
+        const component::Cleartext priv;
+        const component::Cleartext message;
+        const std::optional<component::Cleartext> context;  // OPTIONAL context string (FIPS 204)
+
+        MLDSA_Sign(Datasource& ds, component::Modifier modifier) :
+            Operation(std::move(modifier)),
+            mldsaType(ds),
+            priv(ds),
+            message(ds),
+            context(ds.Get<bool>() ? std::make_optional<component::Cleartext>(ds) : std::nullopt)
+        { }
+
+        MLDSA_Sign(nlohmann::json json) :
+            Operation(json["modifier"]),
+            mldsaType(json["mldsaType"]),
+            priv(json["priv"]),
+            message(json["message"]),
+            context(
+                json["context_enabled"].get<bool>() ?
+                    std::make_optional<component::Cleartext>(json["context"]) :
+                    std::nullopt
+            )
+        { }
+
+        static size_t MaxOperations(void) { return 5; }
+        std::string Name(void) const override;
+        std::string ToString(void) const override;
+        nlohmann::json ToJSON(void) const override;
+        std::string GetAlgorithmString(void) const override {
+            return repository::MLDSAToString(mldsaType.Get());
+        }
+
+        inline bool operator==(const MLDSA_Sign& rhs) const {
+            return
+                (mldsaType == rhs.mldsaType) &&
+                (priv == rhs.priv) &&
+                (message == rhs.message) &&
+                (context == rhs.context) &&
+                (modifier == rhs.modifier);
+        }
+
+        void Serialize(Datasource& ds) const {
+            mldsaType.Serialize(ds);
+            priv.Serialize(ds);
+            message.Serialize(ds);
+            if ( context != std::nullopt ) {
+                ds.Put<>(true);
+                context->Serialize(ds);
+            } else {
+                ds.Put<>(false);
+            }
+        }
+};
+
+class MLDSA_Verify : public Operation {
+    public:
+        const component::MLDSA_ID mldsaType;
+        const component::Cleartext pub;
+        const component::Cleartext message;
+        const component::Cleartext signature;
+        const std::optional<component::Cleartext> context;  // OPTIONAL context string (FIPS 204)
+
+        MLDSA_Verify(Datasource& ds, component::Modifier modifier) :
+            Operation(std::move(modifier)),
+            mldsaType(ds),
+            pub(ds),
+            message(ds),
+            signature(ds),
+            context(ds.Get<bool>() ? std::make_optional<component::Cleartext>(ds) : std::nullopt)
+        { }
+
+        MLDSA_Verify(nlohmann::json json) :
+            Operation(json["modifier"]),
+            mldsaType(json["mldsaType"]),
+            pub(json["pub"]),
+            message(json["message"]),
+            signature(json["signature"]),
+            context(
+                json["context_enabled"].get<bool>() ?
+                    std::make_optional<component::Cleartext>(json["context"]) :
+                    std::nullopt
+            )
+        { }
+
+        static size_t MaxOperations(void) { return 5; }
+        std::string Name(void) const override;
+        std::string ToString(void) const override;
+        nlohmann::json ToJSON(void) const override;
+        std::string GetAlgorithmString(void) const override {
+            return repository::MLDSAToString(mldsaType.Get());
+        }
+
+        inline bool operator==(const MLDSA_Verify& rhs) const {
+            return
+                (mldsaType == rhs.mldsaType) &&
+                (pub == rhs.pub) &&
+                (message == rhs.message) &&
+                (signature == rhs.signature) &&
+                (context == rhs.context) &&
+                (modifier == rhs.modifier);
+        }
+
+        void Serialize(Datasource& ds) const {
+            mldsaType.Serialize(ds);
+            pub.Serialize(ds);
+            message.Serialize(ds);
+            signature.Serialize(ds);
+            if ( context != std::nullopt ) {
+                ds.Put<>(true);
+                context->Serialize(ds);
+            } else {
+                ds.Put<>(false);
+            }
+        }
+};
+
 class ECIES_Encrypt : public Operation {
     public:
         const component::Cleartext cleartext;
