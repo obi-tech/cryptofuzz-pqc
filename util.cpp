@@ -478,6 +478,15 @@ std::string ToString(const component::KEM_Encapsulated& val) {
     return ret;
 }
 
+std::string ToString(const component::MLDSA_KeyPair& val) {
+    std::string ret;
+    ret += "Public key:\n";
+    ret += util::HexDump(val.pub.Get());
+    ret += "\nPrivate key:\n";
+    ret += util::HexDump(val.priv.Get());
+    return ret;
+}
+
 nlohmann::json ToJSON(const Buffer& buffer) {
     return buffer.ToJSON();
 }
@@ -559,6 +568,10 @@ nlohmann::json ToJSON(const component::KEM_KeyPair& val) {
 }
 
 nlohmann::json ToJSON(const component::KEM_Encapsulated& val) {
+    return val.ToJSON();
+}
+
+nlohmann::json ToJSON(const component::MLDSA_KeyPair& val) {
     return val.ToJSON();
 }
 
