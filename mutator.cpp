@@ -383,6 +383,19 @@ static uint64_t getRandomKEMType(void) {
     }
 }
 
+static uint64_t getRandomMLDSAType(void) {
+    if ( !cryptofuzz_options->mldsaTypes.Empty() ) {
+        return cryptofuzz_options->mldsaTypes.At(PRNG());
+    } else {
+        static const uint64_t mldsaTypes[] = {
+            CF_MLDSA("ML-DSA-44"),
+            CF_MLDSA("ML-DSA-65"),
+            CF_MLDSA("ML-DSA-87"),
+        };
+        return mldsaTypes[PRNG() % (sizeof(mldsaTypes) / sizeof(mldsaTypes[0]))];
+    }
+}
+
 static std::string get_BLS_PyECC_DST(void) {
     return "424c535f5349475f424c53313233383147325f584d443a5348412d3235365f535357555f524f5f504f505f";
 }
@@ -2792,13 +2805,13 @@ extern "C" size_t LLVMFuzzerCustomMutator(uint8_t* data, size_t size, size_t max
                 {
                     parameters["modifier"] = "";
                     parameters["kemType"] = getRandomKEMType();
-                    
+
                     if ( Pool_KEM_PrivateKey.Have() && getBool() == true ) {
                         parameters["priv"] = Pool_KEM_PrivateKey.Get();
                     } else {
                         parameters["priv"] = getBuffer(PRNG() % 4096);
                     }
-                    
+
                     if ( Pool_KEM_Ciphertext.Have() && getBool() == true ) {
                         parameters["ciphertext"] = Pool_KEM_Ciphertext.Get();
                     } else {
@@ -2809,6 +2822,80 @@ extern "C" size_t LLVMFuzzerCustomMutator(uint8_t* data, size_t size, size_t max
                     op.Serialize(dsOut2);
                 }
                 break;
+
+            case    CF_OPERATION("MLDSA_GenerateKeyPair"):
+                {
+                    parameters["modifier"] = "";
+                    parameters["mldsaType"] = getRandomMLDSAType();
+
+                    if ( getBool() ) {
+                        parameters["seed_enabled"] = true;
+                        parameters["seed"] = getBuffer(32);
+                    } else {
+                        parameters["seed_enabled"] = false;
+                    }
+
+                    cryptofuzz::operation::MLDSA_GenerateKeyPair op(parameters);
+                    op.Serialize(dsOut2);
+                }
+                break;
+
+            case    CF_OPERATION("MLDSA_Sign"):
+                {
+                    parameters["modifier"] = "";
+                    parameters["mldsaType"] = getRandomMLDSAType();
+
+                    if ( Pool_MLDSA_PrivateKey.Have() && getBool() == true ) {
+                        parameters["priv"] = Pool_MLDSA_PrivateKey.Get();
+                    } else {
+                        parameters["priv"] = getBuffer(PRNG() % 4096);
+                    }
+
+                    parameters["message"] = getBuffer(PRNG() % 256);
+
+                    if ( getBool() ) {
+                        parameters["context_enabled"] = true;
+                        parameters["context"] = getBuffer(PRNG() % 256);
+                    } else {
+                        parameters["context_enabled"] = false;
+                    }
+
+                    cryptofuzz::operation::MLDSA_Sign op(parameters);
+                    op.Serialize(dsOut2);
+                }
+                break;
+
+            case    CF_OPERATION("MLDSA_Verify"):
+                {
+                    parameters["modifier"] = "";
+                    parameters["mldsaType"] = getRandomMLDSAType();
+
+                    if ( Pool_MLDSA_PublicKey.Have() && getBool() == true ) {
+                        parameters["pub"] = Pool_MLDSA_PublicKey.Get();
+                    } else {
+                        parameters["pub"] = getBuffer(PRNG() % 4096);
+                    }
+
+                    parameters["message"] = getBuffer(PRNG() % 256);
+
+                    if ( Pool_MLDSA_Signature.Have() && getBool() == true ) {
+                        parameters["signature"] = Pool_MLDSA_Signature.Get();
+                    } else {
+                        parameters["signature"] = getBuffer(PRNG() % 4096);
+                    }
+
+                    if ( getBool() ) {
+                        parameters["context_enabled"] = true;
+                        parameters["context"] = getBuffer(PRNG() % 256);
+                    } else {
+                        parameters["context_enabled"] = false;
+                    }
+
+                    cryptofuzz::operation::MLDSA_Verify op(parameters);
+                    op.Serialize(dsOut2);
+                }
+                break;
+
             default:
                 goto end;
         }
