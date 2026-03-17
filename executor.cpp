@@ -3026,10 +3026,163 @@ void ExecutorBase<component::KEM_SharedSecret, operation::KEM_Decapsulate>::post
     (void)result;
 }
 
-template<> 
+template<>
 std::optional<component::KEM_SharedSecret> ExecutorBase<component::KEM_SharedSecret, operation::KEM_Decapsulate>::callModule(
     std::shared_ptr<Module> module, operation::KEM_Decapsulate& op) const {
     return module->OpKEM_Decapsulate(op);
+}
+
+/* Specialization for operation::MLDSA_GenerateKeyPair */
+template<>
+void ExecutorBase<component::MLDSA_KeyPair, operation::MLDSA_GenerateKeyPair>::compare(
+    const std::vector< std::pair<std::shared_ptr<Module>, operation::MLDSA_GenerateKeyPair> >& operations,
+    const ResultSet& results, const uint8_t* data, const size_t size) const {
+    (void)data;
+    (void)size;
+
+    if ( results.size() < 2 ) {
+        return;
+    }
+
+    /* Only compare when all modules were given the same non-empty seed */
+    bool allSeedsEqual = true;
+    for (size_t i = 0; i < operations.size(); i++) {
+        if ( operations[i].second.seed == std::nullopt ||
+             operations[i].second.seed->GetSize() == 0 ||
+             !(operations[i].second.seed == operations[0].second.seed) ) {
+            allSeedsEqual = false;
+            break;
+        }
+    }
+    if ( !allSeedsEqual ) {
+        return;
+    }
+
+    bool same = true;
+    for (size_t i = 1; i < results.size(); i++) {
+        if ( results[0] != results[i] ) {
+            same = false;
+            break;
+        }
+    }
+
+    if ( same == false ) {
+        printf("MLDSA_GenerateKeyPair result mismatch:\n");
+        std::vector<std::string> moduleNames;
+        for (size_t i = 0; i < results.size(); i++) {
+            std::cout << "Module " << operations[i].first->name << ":\n";
+            std::cout << util::ToString(results[i].second.value()) << "\n";
+            moduleNames.push_back(operations[i].first->name);
+        }
+        abort(
+                moduleNames,
+                operations[0].second.Name(),
+                operations[0].second.GetAlgorithmString(),
+                "MLDSA_GenerateKeyPair result mismatch"
+        );
+    }
+}
+
+template<>
+void ExecutorBase<component::MLDSA_KeyPair, operation::MLDSA_GenerateKeyPair>::postprocess(
+    std::shared_ptr<Module> module, operation::MLDSA_GenerateKeyPair& op,
+    const ExecutorBase<component::MLDSA_KeyPair, operation::MLDSA_GenerateKeyPair>::ResultPair& result) const {
+    (void)module;
+    (void)op;
+
+    if ( result.second != std::nullopt ) {
+        Pool_MLDSA_PublicKey.Set(result.second->pub.ToHex());
+        Pool_MLDSA_PrivateKey.Set(result.second->priv.ToHex());
+    }
+}
+
+template<>
+std::optional<component::MLDSA_KeyPair> ExecutorBase<component::MLDSA_KeyPair, operation::MLDSA_GenerateKeyPair>::callModule(
+    std::shared_ptr<Module> module, operation::MLDSA_GenerateKeyPair& op) const {
+    RETURN_IF_DISABLED(options.mldsaTypes, op.mldsaType.Get());
+    return module->OpMLDSA_GenerateKeyPair(op);
+}
+
+/* Specialization for operation::MLDSA_Sign */
+template<>
+void ExecutorBase<component::MLDSA_Signature, operation::MLDSA_Sign>::compare(
+    const std::vector< std::pair<std::shared_ptr<Module>, operation::MLDSA_Sign> >& operations,
+    const ResultSet& results, const uint8_t* data, const size_t size) const {
+    (void)operations;
+    (void)results;
+    (void)data;
+    (void)size;
+    /* ML-DSA signing is randomized (no deterministic seed in this op), skip cross-module comparison */
+}
+
+template<>
+void ExecutorBase<component::MLDSA_Signature, operation::MLDSA_Sign>::postprocess(
+    std::shared_ptr<Module> module, operation::MLDSA_Sign& op,
+    const ExecutorBase<component::MLDSA_Signature, operation::MLDSA_Sign>::ResultPair& result) const {
+    (void)module;
+    (void)op;
+
+    if ( result.second != std::nullopt ) {
+        Pool_MLDSA_Signature.Set(result.second->ToHex());
+    }
+}
+
+template<>
+std::optional<component::MLDSA_Signature> ExecutorBase<component::MLDSA_Signature, operation::MLDSA_Sign>::callModule(
+    std::shared_ptr<Module> module, operation::MLDSA_Sign& op) const {
+    RETURN_IF_DISABLED(options.mldsaTypes, op.mldsaType.Get());
+    return module->OpMLDSA_Sign(op);
+}
+
+/* Specialization for operation::MLDSA_Verify */
+template<>
+void ExecutorBase<bool, operation::MLDSA_Verify>::compare(
+    const std::vector< std::pair<std::shared_ptr<Module>, operation::MLDSA_Verify> >& operations,
+    const ResultSet& results, const uint8_t* data, const size_t size) const {
+    (void)data;
+    (void)size;
+
+    if ( results.size() < 2 ) {
+        return;
+    }
+
+    bool same = true;
+    for (size_t i = 1; i < results.size(); i++) {
+        if ( results[0] != results[i] ) {
+            same = false;
+            break;
+        }
+    }
+
+    if ( same == false ) {
+        printf("MLDSA_Verify result mismatch:\n");
+        std::vector<std::string> moduleNames;
+        for (size_t i = 0; i < results.size(); i++) {
+            moduleNames.push_back(operations[i].first->name);
+        }
+        abort(
+                moduleNames,
+                operations[0].second.Name(),
+                operations[0].second.GetAlgorithmString(),
+                "MLDSA_Verify result mismatch"
+        );
+    }
+}
+
+template<>
+void ExecutorBase<bool, operation::MLDSA_Verify>::postprocess(
+    std::shared_ptr<Module> module, operation::MLDSA_Verify& op,
+    const ExecutorBase<bool, operation::MLDSA_Verify>::ResultPair& result) const {
+    (void)module;
+    (void)op;
+    (void)result;
+}
+
+template<>
+std::optional<bool> ExecutorBase<bool, operation::MLDSA_Verify>::callModule(
+    std::shared_ptr<Module> module, operation::MLDSA_Verify& op) const {
+    RETURN_IF_DISABLED(options.mldsaTypes, op.mldsaType.Get());
+    return module->OpMLDSA_Verify(op);
 }
 
 /* Explicit template instantiation */
@@ -3121,6 +3274,9 @@ template class ExecutorBase<bool, operation::SR25519_Verify>;
 template class ExecutorBase<component::KEM_KeyPair, operation::KEM_GenerateKeyPair>;
 template class ExecutorBase<component::KEM_Encapsulated, operation::KEM_Encapsulate>;
 template class ExecutorBase<component::KEM_SharedSecret, operation::KEM_Decapsulate>;
+template class ExecutorBase<component::MLDSA_KeyPair, operation::MLDSA_GenerateKeyPair>;
+template class ExecutorBase<component::MLDSA_Signature, operation::MLDSA_Sign>;
+template class ExecutorBase<bool, operation::MLDSA_Verify>;
 
 
 } /* namespace cryptofuzz */
