@@ -297,6 +297,18 @@ class KEMTable(Table):
 
         return tableEntry
 
+class MLDSATable(Table):
+    def __init__(self):
+        tableDecl = [
+        ]
+
+        super(MLDSATable, self).__init__('MLDSA', tableDecl)
+
+    def getTableEntryList(self, index):
+        tableEntry = []
+
+        return tableEntry
+
 modules = ModuleTable()
 # lint sort start
 modules.Add( Module("Aleo") )
@@ -511,6 +523,9 @@ operations.Add( Operation("KDF_X963") )
 operations.Add( Operation("KEM_Decapsulate") )
 operations.Add( Operation("KEM_Encapsulate") )
 operations.Add( Operation("KEM_GenerateKeyPair") )
+operations.Add( Operation("MLDSA_GenerateKeyPair") )
+operations.Add( Operation("MLDSA_Sign") )
+operations.Add( Operation("MLDSA_Verify") )
 operations.Add( Operation("Misc") )
 operations.Add( Operation("SR25519_Verify") )
 operations.Add( Operation("Schnorr_Sign") )
@@ -1844,7 +1859,14 @@ kemtypes.Add( Component("ML-KEM-512") )
 kemtypes.Add( Component("ML-KEM-768") )
 # lint sort end
 
-tables = [modules, operations, ciphers, digests, ecc_curves, calcops, kemtypes]
+mldsatypes = MLDSATable()
+# lint sort start
+mldsatypes.Add( Component("ML-DSA-44") )
+mldsatypes.Add( Component("ML-DSA-65") )
+mldsatypes.Add( Component("ML-DSA-87") )
+# lint sort end
+
+tables = [modules, operations, ciphers, digests, ecc_curves, calcops, kemtypes, mldsatypes]
 
 with open('repository_tbl.h', 'w') as fp:
     for table in tables:
