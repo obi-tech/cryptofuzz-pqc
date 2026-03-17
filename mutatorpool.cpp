@@ -39,6 +39,9 @@ MutatorPool<std::string, cryptofuzz::config::kMutatorPoolSize> Pool_KEM_PublicKe
 MutatorPool<std::string, cryptofuzz::config::kMutatorPoolSize> Pool_KEM_PrivateKey;
 MutatorPool<std::string, cryptofuzz::config::kMutatorPoolSize> Pool_KEM_Ciphertext;
 MutatorPool<std::string, cryptofuzz::config::kMutatorPoolSize> Pool_KEM_SharedSecret;
+MutatorPool<std::string, cryptofuzz::config::kMutatorPoolSize> Pool_MLDSA_PublicKey;
+MutatorPool<std::string, cryptofuzz::config::kMutatorPoolSize> Pool_MLDSA_PrivateKey;
+MutatorPool<std::string, cryptofuzz::config::kMutatorPoolSize> Pool_MLDSA_Signature;
 
 template class MutatorPool<CurvePrivkey_Pair, cryptofuzz::config::kMutatorPoolSize>;
 template class MutatorPool<CurveKeypair_Pair, cryptofuzz::config::kMutatorPoolSize>;
