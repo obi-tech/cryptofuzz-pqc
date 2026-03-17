@@ -1043,6 +1043,39 @@ nlohmann::json KEM_Encapsulated::ToJSON(void) const {
     return j;
 }
 
+MLDSA_KeyPair::MLDSA_KeyPair(Datasource& ds) :
+    pub(ds),
+    priv(ds)
+{ }
+
+MLDSA_KeyPair::MLDSA_KeyPair(MLDSA_PublicKey pub, MLDSA_PrivateKey priv) :
+    pub(pub),
+    priv(priv)
+{ }
+
+MLDSA_KeyPair::MLDSA_KeyPair(nlohmann::json json) :
+    pub(json["pub"]),
+    priv(json["priv"])
+{ }
+
+bool MLDSA_KeyPair::operator==(const MLDSA_KeyPair& rhs) const {
+    return
+        (pub == rhs.pub) &&
+        (priv == rhs.priv);
+}
+
+void MLDSA_KeyPair::Serialize(Datasource& ds) const {
+    pub.Serialize(ds);
+    priv.Serialize(ds);
+}
+
+nlohmann::json MLDSA_KeyPair::ToJSON(void) const {
+    nlohmann::json j;
+    j["pub"] = pub.ToJSON();
+    j["priv"] = priv.ToJSON();
+    return j;
+}
+
 } /* namespace component */
 
 } /* namespace cryptofuzz */
