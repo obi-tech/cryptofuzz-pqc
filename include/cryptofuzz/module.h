@@ -375,6 +375,18 @@ class Module {
             (void)op;
             return std::nullopt;
         }
+        virtual std::optional<component::MLDSA_KeyPair> OpMLDSA_GenerateKeyPair(operation::MLDSA_GenerateKeyPair& op) {
+            (void)op;
+            return std::nullopt;
+        }
+        virtual std::optional<component::MLDSA_Signature> OpMLDSA_Sign(operation::MLDSA_Sign& op) {
+            (void)op;
+            return std::nullopt;
+        }
+        virtual std::optional<bool> OpMLDSA_Verify(operation::MLDSA_Verify& op) {
+            (void)op;
+            return std::nullopt;
+        }
 };
 
 } /* namespace cryptofuzz */
