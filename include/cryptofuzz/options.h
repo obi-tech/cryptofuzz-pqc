@@ -29,6 +29,7 @@ class Options {
 
         EnabledTypes operations, ciphers, digests, curves, calcOps, disableModules;
         EnabledTypes kemTypes;
+        EnabledTypes mldsaTypes;
         std::optional<uint64_t> forceModule = std::nullopt;
         std::optional<FILE*> jsonDumpFP = std::nullopt;
         size_t minModules = 1;
