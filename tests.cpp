@@ -1005,6 +1005,21 @@ void test(const operation::KEM_Decapsulate& op, const std::optional<component::K
     (void)result;
 }
 
+void test(const operation::MLDSA_GenerateKeyPair& op, const std::optional<component::MLDSA_KeyPair>& result) {
+    (void)op;
+    (void)result;
+}
+
+void test(const operation::MLDSA_Sign& op, const std::optional<component::MLDSA_Signature>& result) {
+    (void)op;
+    (void)result;
+}
+
+void test(const operation::MLDSA_Verify& op, const std::optional<bool>& result) {
+    (void)op;
+    (void)result;
+}
+
 namespace BignumCalc {
     static void Abort(const std::string& message, const std::string& opStr) {
         std::cout << "BignumCalc ( " << opStr << " ): " << message << std::endl;
