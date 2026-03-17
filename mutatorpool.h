@@ -167,3 +167,7 @@ extern MutatorPool<std::string, cryptofuzz::config::kMutatorPoolSize> Pool_KEM_P
 extern MutatorPool<std::string, cryptofuzz::config::kMutatorPoolSize> Pool_KEM_PrivateKey;
 extern MutatorPool<std::string, cryptofuzz::config::kMutatorPoolSize> Pool_KEM_Ciphertext;
 extern MutatorPool<std::string, cryptofuzz::config::kMutatorPoolSize> Pool_KEM_SharedSecret;
+
+extern MutatorPool<std::string, cryptofuzz::config::kMutatorPoolSize> Pool_MLDSA_PublicKey;
+extern MutatorPool<std::string, cryptofuzz::config::kMutatorPoolSize> Pool_MLDSA_PrivateKey;
+extern MutatorPool<std::string, cryptofuzz::config::kMutatorPoolSize> Pool_MLDSA_Signature;
