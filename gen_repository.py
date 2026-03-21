@@ -297,12 +297,12 @@ class KEMTable(Table):
 
         return tableEntry
 
-class MLDSATable(Table):
+class PQSignTable(Table):
     def __init__(self):
         tableDecl = [
         ]
 
-        super(MLDSATable, self).__init__('MLDSA', tableDecl)
+        super(PQSignTable, self).__init__('PQSign', tableDecl)
 
     def getTableEntryList(self, index):
         tableEntry = []
@@ -523,10 +523,10 @@ operations.Add( Operation("KDF_X963") )
 operations.Add( Operation("KEM_Decapsulate") )
 operations.Add( Operation("KEM_Encapsulate") )
 operations.Add( Operation("KEM_GenerateKeyPair") )
-operations.Add( Operation("MLDSA_GenerateKeyPair") )
-operations.Add( Operation("MLDSA_Sign") )
-operations.Add( Operation("MLDSA_Verify") )
 operations.Add( Operation("Misc") )
+operations.Add( Operation("PQSign_GenerateKeyPair") )
+operations.Add( Operation("PQSign_Sign") )
+operations.Add( Operation("PQSign_Verify") )
 operations.Add( Operation("SR25519_Verify") )
 operations.Add( Operation("Schnorr_Sign") )
 operations.Add( Operation("Schnorr_Verify") )
@@ -1859,14 +1859,14 @@ kemtypes.Add( Component("ML-KEM-512") )
 kemtypes.Add( Component("ML-KEM-768") )
 # lint sort end
 
-mldsatypes = MLDSATable()
+pqsigntypes = PQSignTable()
 # lint sort start
-mldsatypes.Add( Component("ML-DSA-44") )
-mldsatypes.Add( Component("ML-DSA-65") )
-mldsatypes.Add( Component("ML-DSA-87") )
+pqsigntypes.Add( Component("ML-DSA-44") )
+pqsigntypes.Add( Component("ML-DSA-65") )
+pqsigntypes.Add( Component("ML-DSA-87") )
 # lint sort end
 
-tables = [modules, operations, ciphers, digests, ecc_curves, calcops, kemtypes, mldsatypes]
+tables = [modules, operations, ciphers, digests, ecc_curves, calcops, kemtypes, pqsigntypes]
 
 with open('repository_tbl.h', 'w') as fp:
     for table in tables:
