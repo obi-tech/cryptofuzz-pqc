@@ -375,15 +375,15 @@ class Module {
             (void)op;
             return std::nullopt;
         }
-        virtual std::optional<component::MLDSA_KeyPair> OpMLDSA_GenerateKeyPair(operation::MLDSA_GenerateKeyPair& op) {
+        virtual std::optional<component::PQSign_KeyPair> OpPQSign_GenerateKeyPair(operation::PQSign_GenerateKeyPair& op) {
             (void)op;
             return std::nullopt;
         }
-        virtual std::optional<component::MLDSA_Signature> OpMLDSA_Sign(operation::MLDSA_Sign& op) {
+        virtual std::optional<component::PQSign_Signature> OpPQSign_Sign(operation::PQSign_Sign& op) {
             (void)op;
             return std::nullopt;
         }
-        virtual std::optional<bool> OpMLDSA_Verify(operation::MLDSA_Verify& op) {
+        virtual std::optional<bool> OpPQSign_Verify(operation::PQSign_Verify& op) {
             (void)op;
             return std::nullopt;
         }
