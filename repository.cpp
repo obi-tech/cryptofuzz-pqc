@@ -262,24 +262,24 @@ std::optional<uint64_t> KEMFromString(const std::string& s) {
     return LUT.at(s);
 }
 
-std::string MLDSAToString(const uint64_t id) {
+std::string PQSignToString(const uint64_t id) {
     switch(id) {
-        case fuzzing::datasource::ID("Cryptofuzz/MLDSA/ML-DSA-44"):
+        case fuzzing::datasource::ID("Cryptofuzz/PQSign/ML-DSA-44"):
             return "ML-DSA-44";
-        case fuzzing::datasource::ID("Cryptofuzz/MLDSA/ML-DSA-65"):
+        case fuzzing::datasource::ID("Cryptofuzz/PQSign/ML-DSA-65"):
             return "ML-DSA-65";
-        case fuzzing::datasource::ID("Cryptofuzz/MLDSA/ML-DSA-87"):
+        case fuzzing::datasource::ID("Cryptofuzz/PQSign/ML-DSA-87"):
             return "ML-DSA-87";
         default:
-            return "(unknown ML-DSA)";
+            return "(unknown PQSign)";
     }
 }
 
-std::optional<uint64_t> MLDSAFromString(const std::string& s) {
+std::optional<uint64_t> PQSignFromString(const std::string& s) {
     static const std::map<std::string, uint64_t> LUT = {
-        {"ML-DSA-44", fuzzing::datasource::ID("Cryptofuzz/MLDSA/ML-DSA-44")},
-        {"ML-DSA-65", fuzzing::datasource::ID("Cryptofuzz/MLDSA/ML-DSA-65")},
-        {"ML-DSA-87", fuzzing::datasource::ID("Cryptofuzz/MLDSA/ML-DSA-87")},
+        {"ML-DSA-44", fuzzing::datasource::ID("Cryptofuzz/PQSign/ML-DSA-44")},
+        {"ML-DSA-65", fuzzing::datasource::ID("Cryptofuzz/PQSign/ML-DSA-65")},
+        {"ML-DSA-87", fuzzing::datasource::ID("Cryptofuzz/PQSign/ML-DSA-87")},
     };
 
     if ( LUT.find(s) == LUT.end() ) {
