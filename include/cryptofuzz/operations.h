@@ -2028,20 +2028,20 @@ class KEM_Decapsulate : public Operation {
         }
 };
 
-class MLDSA_GenerateKeyPair : public Operation {
+class PQSign_GenerateKeyPair : public Operation {
     public:
-        const component::MLDSA_ID mldsaType;
+        const component::PQSign_ID pqsignType;
         const std::optional<component::Cleartext> seed;  // OPTIONAL 32-byte deterministic seed
 
-        MLDSA_GenerateKeyPair(Datasource& ds, component::Modifier modifier) :
+        PQSign_GenerateKeyPair(Datasource& ds, component::Modifier modifier) :
             Operation(std::move(modifier)),
-            mldsaType(ds),
+            pqsignType(ds),
             seed(ds.Get<bool>() ? std::make_optional<component::Cleartext>(ds) : std::nullopt)
         { }
 
-        MLDSA_GenerateKeyPair(nlohmann::json json) :
+        PQSign_GenerateKeyPair(nlohmann::json json) :
             Operation(json["modifier"]),
-            mldsaType(json["mldsaType"]),
+            pqsignType(json["pqsignType"]),
             seed(
                 json["seed_enabled"].get<bool>() ?
                     std::make_optional<component::Cleartext>(json["seed"]) :
@@ -2054,18 +2054,18 @@ class MLDSA_GenerateKeyPair : public Operation {
         std::string ToString(void) const override;
         nlohmann::json ToJSON(void) const override;
         std::string GetAlgorithmString(void) const override {
-            return repository::MLDSAToString(mldsaType.Get());
+            return repository::PQSignToString(pqsignType.Get());
         }
 
-        inline bool operator==(const MLDSA_GenerateKeyPair& rhs) const {
+        inline bool operator==(const PQSign_GenerateKeyPair& rhs) const {
             return
-                (mldsaType == rhs.mldsaType) &&
+                (pqsignType == rhs.pqsignType) &&
                 (seed == rhs.seed) &&
                 (modifier == rhs.modifier);
         }
 
         void Serialize(Datasource& ds) const {
-            mldsaType.Serialize(ds);
+            pqsignType.Serialize(ds);
             if ( seed != std::nullopt ) {
                 ds.Put<>(true);
                 seed->Serialize(ds);
@@ -2075,24 +2075,24 @@ class MLDSA_GenerateKeyPair : public Operation {
         }
 };
 
-class MLDSA_Sign : public Operation {
+class PQSign_Sign : public Operation {
     public:
-        const component::MLDSA_ID mldsaType;
+        const component::PQSign_ID pqsignType;
         const component::Cleartext priv;
         const component::Cleartext message;
         const std::optional<component::Cleartext> context;  // OPTIONAL context string (FIPS 204)
 
-        MLDSA_Sign(Datasource& ds, component::Modifier modifier) :
+        PQSign_Sign(Datasource& ds, component::Modifier modifier) :
             Operation(std::move(modifier)),
-            mldsaType(ds),
+            pqsignType(ds),
             priv(ds),
             message(ds),
             context(ds.Get<bool>() ? std::make_optional<component::Cleartext>(ds) : std::nullopt)
         { }
 
-        MLDSA_Sign(nlohmann::json json) :
+        PQSign_Sign(nlohmann::json json) :
             Operation(json["modifier"]),
-            mldsaType(json["mldsaType"]),
+            pqsignType(json["pqsignType"]),
             priv(json["priv"]),
             message(json["message"]),
             context(
@@ -2107,12 +2107,12 @@ class MLDSA_Sign : public Operation {
         std::string ToString(void) const override;
         nlohmann::json ToJSON(void) const override;
         std::string GetAlgorithmString(void) const override {
-            return repository::MLDSAToString(mldsaType.Get());
+            return repository::PQSignToString(pqsignType.Get());
         }
 
-        inline bool operator==(const MLDSA_Sign& rhs) const {
+        inline bool operator==(const PQSign_Sign& rhs) const {
             return
-                (mldsaType == rhs.mldsaType) &&
+                (pqsignType == rhs.pqsignType) &&
                 (priv == rhs.priv) &&
                 (message == rhs.message) &&
                 (context == rhs.context) &&
@@ -2120,7 +2120,7 @@ class MLDSA_Sign : public Operation {
         }
 
         void Serialize(Datasource& ds) const {
-            mldsaType.Serialize(ds);
+            pqsignType.Serialize(ds);
             priv.Serialize(ds);
             message.Serialize(ds);
             if ( context != std::nullopt ) {
@@ -2132,26 +2132,26 @@ class MLDSA_Sign : public Operation {
         }
 };
 
-class MLDSA_Verify : public Operation {
+class PQSign_Verify : public Operation {
     public:
-        const component::MLDSA_ID mldsaType;
+        const component::PQSign_ID pqsignType;
         const component::Cleartext pub;
         const component::Cleartext message;
         const component::Cleartext signature;
         const std::optional<component::Cleartext> context;  // OPTIONAL context string (FIPS 204)
 
-        MLDSA_Verify(Datasource& ds, component::Modifier modifier) :
+        PQSign_Verify(Datasource& ds, component::Modifier modifier) :
             Operation(std::move(modifier)),
-            mldsaType(ds),
+            pqsignType(ds),
             pub(ds),
             message(ds),
             signature(ds),
             context(ds.Get<bool>() ? std::make_optional<component::Cleartext>(ds) : std::nullopt)
         { }
 
-        MLDSA_Verify(nlohmann::json json) :
+        PQSign_Verify(nlohmann::json json) :
             Operation(json["modifier"]),
-            mldsaType(json["mldsaType"]),
+            pqsignType(json["pqsignType"]),
             pub(json["pub"]),
             message(json["message"]),
             signature(json["signature"]),
@@ -2167,12 +2167,12 @@ class MLDSA_Verify : public Operation {
         std::string ToString(void) const override;
         nlohmann::json ToJSON(void) const override;
         std::string GetAlgorithmString(void) const override {
-            return repository::MLDSAToString(mldsaType.Get());
+            return repository::PQSignToString(pqsignType.Get());
         }
 
-        inline bool operator==(const MLDSA_Verify& rhs) const {
+        inline bool operator==(const PQSign_Verify& rhs) const {
             return
-                (mldsaType == rhs.mldsaType) &&
+                (pqsignType == rhs.pqsignType) &&
                 (pub == rhs.pub) &&
                 (message == rhs.message) &&
                 (signature == rhs.signature) &&
@@ -2181,7 +2181,7 @@ class MLDSA_Verify : public Operation {
         }
 
         void Serialize(Datasource& ds) const {
-            mldsaType.Serialize(ds);
+            pqsignType.Serialize(ds);
             pub.Serialize(ds);
             message.Serialize(ds);
             signature.Serialize(ds);
