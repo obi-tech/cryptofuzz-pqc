@@ -1,4 +1,4 @@
-all : cryptofuzz generate_dict generate_corpus
+all : cryptofuzz generate_dict
 
 CXXFLAGS += -Wall -Wextra -std=c++17 -I include/ -I . -I fuzzing-headers/include -DFUZZING_HEADERS_NO_IMPL
 REPOSITORY_HEADERS = repository_tbl.h repository_map.h
@@ -38,5 +38,18 @@ generate_dict: generate_dict.cpp repository_map.h
 generate_corpus: generate_corpus.cpp
 	$(CXX) $(CXXFLAGS) generate_corpus.cpp -o generate_corpus
 
+generate_kem_corpus: generate_kem_corpus.cpp
+	$(CXX) $(CXXFLAGS) generate_kem_corpus.cpp -o generate_kem_corpus
+
+generate_pqsign_corpus: generate_pqsign_corpus.cpp
+	$(CXX) $(CXXFLAGS) generate_pqsign_corpus.cpp -o generate_pqsign_corpus
+
+generate_kem_valid_seeds: generate_kem_valid_seeds.cpp
+	$(CXX) $(CXXFLAGS) -I$(LIBOQS_INCLUDE_PATH) generate_kem_valid_seeds.cpp $(LIBOQS_A_PATH) -o generate_kem_valid_seeds
+
+generate_pqsign_valid_seeds: generate_pqsign_valid_seeds.cpp
+	$(CXX) $(CXXFLAGS) -I$(LIBOQS_INCLUDE_PATH) generate_pqsign_valid_seeds.cpp $(LIBOQS_A_PATH) -o generate_pqsign_valid_seeds
+
 clean:
-	rm -rf $(OBJECT_FILES) $(REPOSITORY_HEADERS) cryptofuzz generate_dict generate_corpus
+	rm -rf $(OBJECT_FILES) $(REPOSITORY_HEADERS) cryptofuzz generate_dict generate_corpus \
+	generate_kem_corpus generate_pqsign_corpus generate_kem_valid_seeds generate_pqsign_valid_seeds
