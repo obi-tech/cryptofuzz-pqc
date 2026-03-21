@@ -383,16 +383,16 @@ static uint64_t getRandomKEMType(void) {
     }
 }
 
-static uint64_t getRandomMLDSAType(void) {
-    if ( !cryptofuzz_options->mldsaTypes.Empty() ) {
-        return cryptofuzz_options->mldsaTypes.At(PRNG());
+static uint64_t getRandomPQSignType(void) {
+    if ( !cryptofuzz_options->pqsignTypes.Empty() ) {
+        return cryptofuzz_options->pqsignTypes.At(PRNG());
     } else {
-        static const uint64_t mldsaTypes[] = {
-            CF_MLDSA("ML-DSA-44"),
-            CF_MLDSA("ML-DSA-65"),
-            CF_MLDSA("ML-DSA-87"),
+        static const uint64_t pqsignTypes[] = {
+            CF_PQSIGN("ML-DSA-44"),
+            CF_PQSIGN("ML-DSA-65"),
+            CF_PQSIGN("ML-DSA-87"),
         };
-        return mldsaTypes[PRNG() % (sizeof(mldsaTypes) / sizeof(mldsaTypes[0]))];
+        return pqsignTypes[PRNG() % (sizeof(pqsignTypes) / sizeof(pqsignTypes[0]))];
     }
 }
 
@@ -2823,10 +2823,10 @@ extern "C" size_t LLVMFuzzerCustomMutator(uint8_t* data, size_t size, size_t max
                 }
                 break;
 
-            case    CF_OPERATION("MLDSA_GenerateKeyPair"):
+            case    CF_OPERATION("PQSign_GenerateKeyPair"):
                 {
                     parameters["modifier"] = "";
-                    parameters["mldsaType"] = getRandomMLDSAType();
+                    parameters["pqsignType"] = getRandomPQSignType();
 
                     if ( getBool() ) {
                         parameters["seed_enabled"] = true;
@@ -2835,18 +2835,18 @@ extern "C" size_t LLVMFuzzerCustomMutator(uint8_t* data, size_t size, size_t max
                         parameters["seed_enabled"] = false;
                     }
 
-                    cryptofuzz::operation::MLDSA_GenerateKeyPair op(parameters);
+                    cryptofuzz::operation::PQSign_GenerateKeyPair op(parameters);
                     op.Serialize(dsOut2);
                 }
                 break;
 
-            case    CF_OPERATION("MLDSA_Sign"):
+            case    CF_OPERATION("PQSign_Sign"):
                 {
                     parameters["modifier"] = "";
-                    parameters["mldsaType"] = getRandomMLDSAType();
+                    parameters["pqsignType"] = getRandomPQSignType();
 
-                    if ( Pool_MLDSA_PrivateKey.Have() && getBool() == true ) {
-                        parameters["priv"] = Pool_MLDSA_PrivateKey.Get();
+                    if ( Pool_PQSign_PrivateKey.Have() && getBool() == true ) {
+                        parameters["priv"] = Pool_PQSign_PrivateKey.Get();
                     } else {
                         parameters["priv"] = getBuffer(PRNG() % 4096);
                     }
@@ -2860,26 +2860,26 @@ extern "C" size_t LLVMFuzzerCustomMutator(uint8_t* data, size_t size, size_t max
                         parameters["context_enabled"] = false;
                     }
 
-                    cryptofuzz::operation::MLDSA_Sign op(parameters);
+                    cryptofuzz::operation::PQSign_Sign op(parameters);
                     op.Serialize(dsOut2);
                 }
                 break;
 
-            case    CF_OPERATION("MLDSA_Verify"):
+            case    CF_OPERATION("PQSign_Verify"):
                 {
                     parameters["modifier"] = "";
-                    parameters["mldsaType"] = getRandomMLDSAType();
+                    parameters["pqsignType"] = getRandomPQSignType();
 
-                    if ( Pool_MLDSA_PublicKey.Have() && getBool() == true ) {
-                        parameters["pub"] = Pool_MLDSA_PublicKey.Get();
+                    if ( Pool_PQSign_PublicKey.Have() && getBool() == true ) {
+                        parameters["pub"] = Pool_PQSign_PublicKey.Get();
                     } else {
                         parameters["pub"] = getBuffer(PRNG() % 4096);
                     }
 
                     parameters["message"] = getBuffer(PRNG() % 256);
 
-                    if ( Pool_MLDSA_Signature.Have() && getBool() == true ) {
-                        parameters["signature"] = Pool_MLDSA_Signature.Get();
+                    if ( Pool_PQSign_Signature.Have() && getBool() == true ) {
+                        parameters["signature"] = Pool_PQSign_Signature.Get();
                     } else {
                         parameters["signature"] = getBuffer(PRNG() % 4096);
                     }
@@ -2891,7 +2891,7 @@ extern "C" size_t LLVMFuzzerCustomMutator(uint8_t* data, size_t size, size_t max
                         parameters["context_enabled"] = false;
                     }
 
-                    cryptofuzz::operation::MLDSA_Verify op(parameters);
+                    cryptofuzz::operation::PQSign_Verify op(parameters);
                     op.Serialize(dsOut2);
                 }
                 break;
