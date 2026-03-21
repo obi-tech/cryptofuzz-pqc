@@ -294,8 +294,8 @@ using ExecutorSR25519_Verify = ExecutorBase<bool, operation::SR25519_Verify>;
 using ExecutorKEM_GenerateKeyPair = ExecutorBase<component::KEM_KeyPair, operation::KEM_GenerateKeyPair>;
 using ExecutorKEM_Encapsulate = ExecutorBase<component::KEM_Encapsulated, operation::KEM_Encapsulate>;
 using ExecutorKEM_Decapsulate = ExecutorBase<component::KEM_SharedSecret, operation::KEM_Decapsulate>;
-using ExecutorMLDSA_GenerateKeyPair = ExecutorBase<component::MLDSA_KeyPair, operation::MLDSA_GenerateKeyPair>;
-using ExecutorMLDSA_Sign = ExecutorBase<component::MLDSA_Signature, operation::MLDSA_Sign>;
-using ExecutorMLDSA_Verify = ExecutorBase<bool, operation::MLDSA_Verify>;
+using ExecutorPQSign_GenerateKeyPair = ExecutorBase<component::PQSign_KeyPair, operation::PQSign_GenerateKeyPair>;
+using ExecutorPQSign_Sign = ExecutorBase<component::PQSign_Signature, operation::PQSign_Sign>;
+using ExecutorPQSign_Verify = ExecutorBase<bool, operation::PQSign_Verify>;
 
 } /* namespace cryptofuzz */
