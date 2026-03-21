@@ -186,27 +186,27 @@ Options::Options(const int argc, char** argv, const std::vector<std::string> ext
                 }
             }
 
-        } else if ( !parts.empty() && parts[0] == "--mldsatypes" ) {
+        } else if ( !parts.empty() && parts[0] == "--pqsigntypes" ) {
             if ( parts.size() != 2 ) {
-                std::cout << "Expected argument after --mldsatypes=" << std::endl;
+                std::cout << "Expected argument after --pqsigntypes=" << std::endl;
                 exit(1);
             }
 
-            std::vector<std::string> mldsaStrings;
-            boost::split(mldsaStrings, parts[1], boost::is_any_of(","));
+            std::vector<std::string> pqsignStrings;
+            boost::split(pqsignStrings, parts[1], boost::is_any_of(","));
 
-            for (const auto& curMldsaStr : mldsaStrings) {
+            for (const auto& curPQSignStr : pqsignStrings) {
                 bool found = false;
-                for (size_t i = 0; i < (sizeof(repository::MLDSALUT) / sizeof(repository::MLDSALUT[0])); i++) {
-                    if ( boost::iequals(curMldsaStr, std::string(repository::MLDSALUT[i].name)) ) {
-                        this->mldsaTypes.Add(repository::MLDSALUT[i].id);
+                for (size_t i = 0; i < (sizeof(repository::PQSignLUT) / sizeof(repository::PQSignLUT[0])); i++) {
+                    if ( boost::iequals(curPQSignStr, std::string(repository::PQSignLUT[i].name)) ) {
+                        this->pqsignTypes.Add(repository::PQSignLUT[i].id);
                         found = true;
                         break;
                     }
                 }
 
                 if ( found == false ) {
-                    std::cout << "Undefined ML-DSA type: " << curMldsaStr << std::endl;
+                    std::cout << "Undefined PQSign type: " << curPQSignStr << std::endl;
                     exit(1);
                 }
             }
