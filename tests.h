@@ -94,9 +94,9 @@ void test(const operation::SR25519_Verify& op, const std::optional<bool>& result
 void test(const operation::KEM_GenerateKeyPair& op, const std::optional<component::KEM_KeyPair>& result);
 void test(const operation::KEM_Encapsulate& op, const std::optional<component::KEM_Encapsulated>& result);
 void test(const operation::KEM_Decapsulate& op, const std::optional<component::KEM_SharedSecret>& result);
-void test(const operation::MLDSA_GenerateKeyPair& op, const std::optional<component::MLDSA_KeyPair>& result);
-void test(const operation::MLDSA_Sign& op, const std::optional<component::MLDSA_Signature>& result);
-void test(const operation::MLDSA_Verify& op, const std::optional<bool>& result);
+void test(const operation::PQSign_GenerateKeyPair& op, const std::optional<component::PQSign_KeyPair>& result);
+void test(const operation::PQSign_Sign& op, const std::optional<component::PQSign_Signature>& result);
+void test(const operation::PQSign_Verify& op, const std::optional<bool>& result);
 
 } /* namespace tests */
 } /* namespace cryptofuzz */
