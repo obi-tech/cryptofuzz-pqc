@@ -126,9 +126,9 @@ void Driver::Run(const uint8_t* data, const size_t size) const {
     static ExecutorKEM_GenerateKeyPair executorKEM_GenerateKeyPair(CF_OPERATION("KEM_GenerateKeyPair"), modules, options);
     static ExecutorKEM_Encapsulate executorKEM_Encapsulate(CF_OPERATION("KEM_Encapsulate"), modules, options);
     static ExecutorKEM_Decapsulate executorKEM_Decapsulate(CF_OPERATION("KEM_Decapsulate"), modules, options);
-    static ExecutorMLDSA_GenerateKeyPair executorMLDSA_GenerateKeyPair(CF_OPERATION("MLDSA_GenerateKeyPair"), modules, options);
-    static ExecutorMLDSA_Sign executorMLDSA_Sign(CF_OPERATION("MLDSA_Sign"), modules, options);
-    static ExecutorMLDSA_Verify executorMLDSA_Verify(CF_OPERATION("MLDSA_Verify"), modules, options);
+    static ExecutorPQSign_GenerateKeyPair executorPQSign_GenerateKeyPair(CF_OPERATION("PQSign_GenerateKeyPair"), modules, options);
+    static ExecutorPQSign_Sign executorPQSign_Sign(CF_OPERATION("PQSign_Sign"), modules, options);
+    static ExecutorPQSign_Verify executorPQSign_Verify(CF_OPERATION("PQSign_Verify"), modules, options);
 
     try {
 
@@ -473,14 +473,14 @@ void Driver::Run(const uint8_t* data, const size_t size) const {
             case CF_OPERATION("KEM_Decapsulate"):
                 executorKEM_Decapsulate.Run(ds, payload.data(), payload.size());
                 break;
-            case CF_OPERATION("MLDSA_GenerateKeyPair"):
-                executorMLDSA_GenerateKeyPair.Run(ds, payload.data(), payload.size());
+            case CF_OPERATION("PQSign_GenerateKeyPair"):
+                executorPQSign_GenerateKeyPair.Run(ds, payload.data(), payload.size());
                 break;
-            case CF_OPERATION("MLDSA_Sign"):
-                executorMLDSA_Sign.Run(ds, payload.data(), payload.size());
+            case CF_OPERATION("PQSign_Sign"):
+                executorPQSign_Sign.Run(ds, payload.data(), payload.size());
                 break;
-            case CF_OPERATION("MLDSA_Verify"):
-                executorMLDSA_Verify.Run(ds, payload.data(), payload.size());
+            case CF_OPERATION("PQSign_Verify"):
+                executorPQSign_Verify.Run(ds, payload.data(), payload.size());
                 break;
         }
     } catch ( Datasource::OutOfData& ) {
