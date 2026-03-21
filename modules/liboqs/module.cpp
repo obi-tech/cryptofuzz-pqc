@@ -42,20 +42,20 @@ namespace {
         return OQS_KEM_new(alg_name);
     }
 
-    // Helper function to map Cryptofuzz ML-DSA types to liboqs algorithm names
-    const char* mldsaTypeToOQSAlg(uint64_t mldsaType) {
-        if (mldsaType == CF_MLDSA("ML-DSA-44")) {
+    // Helper function to map Cryptofuzz PQSign types to liboqs algorithm names
+    const char* pqsignTypeToOQSAlg(uint64_t pqsignType) {
+        if (pqsignType == CF_PQSIGN("ML-DSA-44")) {
             return OQS_SIG_alg_ml_dsa_44;
-        } else if (mldsaType == CF_MLDSA("ML-DSA-65")) {
+        } else if (pqsignType == CF_PQSIGN("ML-DSA-65")) {
             return OQS_SIG_alg_ml_dsa_65;
-        } else if (mldsaType == CF_MLDSA("ML-DSA-87")) {
+        } else if (pqsignType == CF_PQSIGN("ML-DSA-87")) {
             return OQS_SIG_alg_ml_dsa_87;
         }
         return nullptr;
     }
 
-    OQS_SIG* getSIG(uint64_t mldsaType) {
-        const char* alg_name = mldsaTypeToOQSAlg(mldsaType);
+    OQS_SIG* getPQSIG(uint64_t pqsignType) {
+        const char* alg_name = pqsignTypeToOQSAlg(pqsignType);
         if (alg_name == nullptr) {
             return nullptr;
         }
@@ -186,16 +186,16 @@ end:
     return ret;
 }
 
-// ML-DSA Operations with Deterministic RNG Support
-std::optional<component::MLDSA_KeyPair> liboqs::OpMLDSA_GenerateKeyPair(operation::MLDSA_GenerateKeyPair& op) {
-    std::optional<component::MLDSA_KeyPair> ret = std::nullopt;
+// PQSign Operations with Deterministic RNG Support
+std::optional<component::PQSign_KeyPair> liboqs::OpPQSign_GenerateKeyPair(operation::PQSign_GenerateKeyPair& op) {
+    std::optional<component::PQSign_KeyPair> ret = std::nullopt;
 
     OQS_SIG* sig = nullptr;
     uint8_t* public_key = nullptr;
     uint8_t* secret_key = nullptr;
 
     // Get the SIG algorithm
-    CF_CHECK_NE(sig = getSIG(op.mldsaType.Get()), nullptr);
+    CF_CHECK_NE(sig = getPQSIG(op.pqsignType.Get()), nullptr);
 
     // Allocate key buffers
     public_key = util::malloc(sig->length_public_key);
@@ -218,9 +218,9 @@ std::optional<component::MLDSA_KeyPair> liboqs::OpMLDSA_GenerateKeyPair(operatio
     }
 
     // Create return value
-    ret = component::MLDSA_KeyPair(
-        component::MLDSA_PublicKey(public_key, sig->length_public_key),
-        component::MLDSA_PrivateKey(secret_key, sig->length_secret_key)
+    ret = component::PQSign_KeyPair(
+        component::PQSign_PublicKey(public_key, sig->length_public_key),
+        component::PQSign_PrivateKey(secret_key, sig->length_secret_key)
     );
 
 end:
@@ -231,15 +231,15 @@ end:
     return ret;
 }
 
-std::optional<component::MLDSA_Signature> liboqs::OpMLDSA_Sign(operation::MLDSA_Sign& op) {
-    std::optional<component::MLDSA_Signature> ret = std::nullopt;
+std::optional<component::PQSign_Signature> liboqs::OpPQSign_Sign(operation::PQSign_Sign& op) {
+    std::optional<component::PQSign_Signature> ret = std::nullopt;
 
     OQS_SIG* sig = nullptr;
     uint8_t* signature = nullptr;
     size_t sig_len = 0;
 
     // Get the SIG algorithm
-    CF_CHECK_NE(sig = getSIG(op.mldsaType.Get()), nullptr);
+    CF_CHECK_NE(sig = getPQSIG(op.pqsignType.Get()), nullptr);
 
     // Validate private key size
     CF_CHECK_EQ(op.priv.GetSize(), sig->length_secret_key);
@@ -272,7 +272,7 @@ std::optional<component::MLDSA_Signature> liboqs::OpMLDSA_Sign(operation::MLDSA_
     liboqs_detail::cleanup_deterministic_rng();
 
     // Create return value
-    ret = component::MLDSA_Signature(signature, sig_len);
+    ret = component::PQSign_Signature(signature, sig_len);
 
 end:
     util::free(signature);
@@ -281,13 +281,13 @@ end:
     return ret;
 }
 
-std::optional<bool> liboqs::OpMLDSA_Verify(operation::MLDSA_Verify& op) {
+std::optional<bool> liboqs::OpPQSign_Verify(operation::PQSign_Verify& op) {
     std::optional<bool> ret = std::nullopt;
 
     OQS_SIG* sig = nullptr;
 
     // Get the SIG algorithm
-    CF_CHECK_NE(sig = getSIG(op.mldsaType.Get()), nullptr);
+    CF_CHECK_NE(sig = getPQSIG(op.pqsignType.Get()), nullptr);
 
     // Validate public key size
     CF_CHECK_EQ(op.pub.GetSize(), sig->length_public_key);
