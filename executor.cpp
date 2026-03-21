@@ -3032,10 +3032,10 @@ std::optional<component::KEM_SharedSecret> ExecutorBase<component::KEM_SharedSec
     return module->OpKEM_Decapsulate(op);
 }
 
-/* Specialization for operation::MLDSA_GenerateKeyPair */
+/* Specialization for operation::PQSign_GenerateKeyPair */
 template<>
-void ExecutorBase<component::MLDSA_KeyPair, operation::MLDSA_GenerateKeyPair>::compare(
-    const std::vector< std::pair<std::shared_ptr<Module>, operation::MLDSA_GenerateKeyPair> >& operations,
+void ExecutorBase<component::PQSign_KeyPair, operation::PQSign_GenerateKeyPair>::compare(
+    const std::vector< std::pair<std::shared_ptr<Module>, operation::PQSign_GenerateKeyPair> >& operations,
     const ResultSet& results, const uint8_t* data, const size_t size) const {
     (void)data;
     (void)size;
@@ -3067,7 +3067,7 @@ void ExecutorBase<component::MLDSA_KeyPair, operation::MLDSA_GenerateKeyPair>::c
     }
 
     if ( same == false ) {
-        printf("MLDSA_GenerateKeyPair result mismatch:\n");
+        printf("PQSign_GenerateKeyPair result mismatch:\n");
         std::vector<std::string> moduleNames;
         for (size_t i = 0; i < results.size(); i++) {
             std::cout << "Module " << operations[i].first->name << ":\n";
@@ -3078,35 +3078,35 @@ void ExecutorBase<component::MLDSA_KeyPair, operation::MLDSA_GenerateKeyPair>::c
                 moduleNames,
                 operations[0].second.Name(),
                 operations[0].second.GetAlgorithmString(),
-                "MLDSA_GenerateKeyPair result mismatch"
+                "PQSign_GenerateKeyPair result mismatch"
         );
     }
 }
 
 template<>
-void ExecutorBase<component::MLDSA_KeyPair, operation::MLDSA_GenerateKeyPair>::postprocess(
-    std::shared_ptr<Module> module, operation::MLDSA_GenerateKeyPair& op,
-    const ExecutorBase<component::MLDSA_KeyPair, operation::MLDSA_GenerateKeyPair>::ResultPair& result) const {
+void ExecutorBase<component::PQSign_KeyPair, operation::PQSign_GenerateKeyPair>::postprocess(
+    std::shared_ptr<Module> module, operation::PQSign_GenerateKeyPair& op,
+    const ExecutorBase<component::PQSign_KeyPair, operation::PQSign_GenerateKeyPair>::ResultPair& result) const {
     (void)module;
     (void)op;
 
     if ( result.second != std::nullopt ) {
-        Pool_MLDSA_PublicKey.Set(result.second->pub.ToHex());
-        Pool_MLDSA_PrivateKey.Set(result.second->priv.ToHex());
+        Pool_PQSign_PublicKey.Set(result.second->pub.ToHex());
+        Pool_PQSign_PrivateKey.Set(result.second->priv.ToHex());
     }
 }
 
 template<>
-std::optional<component::MLDSA_KeyPair> ExecutorBase<component::MLDSA_KeyPair, operation::MLDSA_GenerateKeyPair>::callModule(
-    std::shared_ptr<Module> module, operation::MLDSA_GenerateKeyPair& op) const {
-    RETURN_IF_DISABLED(options.mldsaTypes, op.mldsaType.Get());
-    return module->OpMLDSA_GenerateKeyPair(op);
+std::optional<component::PQSign_KeyPair> ExecutorBase<component::PQSign_KeyPair, operation::PQSign_GenerateKeyPair>::callModule(
+    std::shared_ptr<Module> module, operation::PQSign_GenerateKeyPair& op) const {
+    RETURN_IF_DISABLED(options.pqsignTypes, op.pqsignType.Get());
+    return module->OpPQSign_GenerateKeyPair(op);
 }
 
-/* Specialization for operation::MLDSA_Sign */
+/* Specialization for operation::PQSign_Sign */
 template<>
-void ExecutorBase<component::MLDSA_Signature, operation::MLDSA_Sign>::compare(
-    const std::vector< std::pair<std::shared_ptr<Module>, operation::MLDSA_Sign> >& operations,
+void ExecutorBase<component::PQSign_Signature, operation::PQSign_Sign>::compare(
+    const std::vector< std::pair<std::shared_ptr<Module>, operation::PQSign_Sign> >& operations,
     const ResultSet& results, const uint8_t* data, const size_t size) const {
     (void)operations;
     (void)results;
@@ -3116,28 +3116,28 @@ void ExecutorBase<component::MLDSA_Signature, operation::MLDSA_Sign>::compare(
 }
 
 template<>
-void ExecutorBase<component::MLDSA_Signature, operation::MLDSA_Sign>::postprocess(
-    std::shared_ptr<Module> module, operation::MLDSA_Sign& op,
-    const ExecutorBase<component::MLDSA_Signature, operation::MLDSA_Sign>::ResultPair& result) const {
+void ExecutorBase<component::PQSign_Signature, operation::PQSign_Sign>::postprocess(
+    std::shared_ptr<Module> module, operation::PQSign_Sign& op,
+    const ExecutorBase<component::PQSign_Signature, operation::PQSign_Sign>::ResultPair& result) const {
     (void)module;
     (void)op;
 
     if ( result.second != std::nullopt ) {
-        Pool_MLDSA_Signature.Set(result.second->ToHex());
+        Pool_PQSign_Signature.Set(result.second->ToHex());
     }
 }
 
 template<>
-std::optional<component::MLDSA_Signature> ExecutorBase<component::MLDSA_Signature, operation::MLDSA_Sign>::callModule(
-    std::shared_ptr<Module> module, operation::MLDSA_Sign& op) const {
-    RETURN_IF_DISABLED(options.mldsaTypes, op.mldsaType.Get());
-    return module->OpMLDSA_Sign(op);
+std::optional<component::PQSign_Signature> ExecutorBase<component::PQSign_Signature, operation::PQSign_Sign>::callModule(
+    std::shared_ptr<Module> module, operation::PQSign_Sign& op) const {
+    RETURN_IF_DISABLED(options.pqsignTypes, op.pqsignType.Get());
+    return module->OpPQSign_Sign(op);
 }
 
-/* Specialization for operation::MLDSA_Verify */
+/* Specialization for operation::PQSign_Verify */
 template<>
-void ExecutorBase<bool, operation::MLDSA_Verify>::compare(
-    const std::vector< std::pair<std::shared_ptr<Module>, operation::MLDSA_Verify> >& operations,
+void ExecutorBase<bool, operation::PQSign_Verify>::compare(
+    const std::vector< std::pair<std::shared_ptr<Module>, operation::PQSign_Verify> >& operations,
     const ResultSet& results, const uint8_t* data, const size_t size) const {
     (void)data;
     (void)size;
@@ -3155,7 +3155,7 @@ void ExecutorBase<bool, operation::MLDSA_Verify>::compare(
     }
 
     if ( same == false ) {
-        printf("MLDSA_Verify result mismatch:\n");
+        printf("PQSign_Verify result mismatch:\n");
         std::vector<std::string> moduleNames;
         for (size_t i = 0; i < results.size(); i++) {
             moduleNames.push_back(operations[i].first->name);
@@ -3164,25 +3164,25 @@ void ExecutorBase<bool, operation::MLDSA_Verify>::compare(
                 moduleNames,
                 operations[0].second.Name(),
                 operations[0].second.GetAlgorithmString(),
-                "MLDSA_Verify result mismatch"
+                "PQSign_Verify result mismatch"
         );
     }
 }
 
 template<>
-void ExecutorBase<bool, operation::MLDSA_Verify>::postprocess(
-    std::shared_ptr<Module> module, operation::MLDSA_Verify& op,
-    const ExecutorBase<bool, operation::MLDSA_Verify>::ResultPair& result) const {
+void ExecutorBase<bool, operation::PQSign_Verify>::postprocess(
+    std::shared_ptr<Module> module, operation::PQSign_Verify& op,
+    const ExecutorBase<bool, operation::PQSign_Verify>::ResultPair& result) const {
     (void)module;
     (void)op;
     (void)result;
 }
 
 template<>
-std::optional<bool> ExecutorBase<bool, operation::MLDSA_Verify>::callModule(
-    std::shared_ptr<Module> module, operation::MLDSA_Verify& op) const {
-    RETURN_IF_DISABLED(options.mldsaTypes, op.mldsaType.Get());
-    return module->OpMLDSA_Verify(op);
+std::optional<bool> ExecutorBase<bool, operation::PQSign_Verify>::callModule(
+    std::shared_ptr<Module> module, operation::PQSign_Verify& op) const {
+    RETURN_IF_DISABLED(options.pqsignTypes, op.pqsignType.Get());
+    return module->OpPQSign_Verify(op);
 }
 
 /* Explicit template instantiation */
@@ -3274,9 +3274,9 @@ template class ExecutorBase<bool, operation::SR25519_Verify>;
 template class ExecutorBase<component::KEM_KeyPair, operation::KEM_GenerateKeyPair>;
 template class ExecutorBase<component::KEM_Encapsulated, operation::KEM_Encapsulate>;
 template class ExecutorBase<component::KEM_SharedSecret, operation::KEM_Decapsulate>;
-template class ExecutorBase<component::MLDSA_KeyPair, operation::MLDSA_GenerateKeyPair>;
-template class ExecutorBase<component::MLDSA_Signature, operation::MLDSA_Sign>;
-template class ExecutorBase<bool, operation::MLDSA_Verify>;
+template class ExecutorBase<component::PQSign_KeyPair, operation::PQSign_GenerateKeyPair>;
+template class ExecutorBase<component::PQSign_Signature, operation::PQSign_Sign>;
+template class ExecutorBase<bool, operation::PQSign_Verify>;
 
 
 } /* namespace cryptofuzz */
