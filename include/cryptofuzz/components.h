@@ -15,7 +15,7 @@ using KDFType = Type;
 using CurveType = Type;
 using CalcOp = Type;
 using KEM_ID = Type;
-using MLDSA_ID = Type;
+using PQSign_ID = Type;
 
 using Modifier = Buffer;
 using Cleartext = Buffer;
@@ -36,9 +36,9 @@ using KEM_PublicKey = Buffer;
 using KEM_PrivateKey = Buffer;
 using KEM_Ciphertext = Buffer;
 using KEM_SharedSecret = Buffer;
-using MLDSA_PublicKey = Buffer;
-using MLDSA_PrivateKey = Buffer;
-using MLDSA_Signature = Buffer;
+using PQSign_PublicKey = Buffer;
+using PQSign_PrivateKey = Buffer;
+using PQSign_Signature = Buffer;
 
 using ECC_PrivateKey = Bignum;
 using Bignum = ::cryptofuzz::Bignum;
@@ -450,16 +450,16 @@ class KEM_Encapsulated {
         nlohmann::json ToJSON(void) const;
 };
 
-class MLDSA_KeyPair {
+class PQSign_KeyPair {
     public:
-        MLDSA_PublicKey pub;
-        MLDSA_PrivateKey priv;
+        PQSign_PublicKey pub;
+        PQSign_PrivateKey priv;
 
-        MLDSA_KeyPair(Datasource& ds);
-        MLDSA_KeyPair(MLDSA_PublicKey pub, MLDSA_PrivateKey priv);
-        MLDSA_KeyPair(nlohmann::json json);
+        PQSign_KeyPair(Datasource& ds);
+        PQSign_KeyPair(PQSign_PublicKey pub, PQSign_PrivateKey priv);
+        PQSign_KeyPair(nlohmann::json json);
 
-        bool operator==(const MLDSA_KeyPair& rhs) const;
+        bool operator==(const PQSign_KeyPair& rhs) const;
         void Serialize(Datasource& ds) const;
         nlohmann::json ToJSON(void) const;
 };
