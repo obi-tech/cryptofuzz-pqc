@@ -18,6 +18,11 @@
 #include <botan/pubkey.h>
 #include <botan/pwdhash.h>
 #include <botan/system_rng.h>
+#include <botan/kyber.h>
+#include <botan/dilithium.h>
+#include <botan/hmac_drbg.h>
+#include <botan/ec_group.h>
+#include <botan/ec_apoint.h>
 #include "bn_ops.h"
 
 namespace cryptofuzz {
@@ -167,6 +172,20 @@ namespace Botan_detail {
         }
 end:
         return ret;
+    }
+
+    static std::optional<::Botan::KyberMode> toKyberMode(const uint64_t kemType) {
+        if ( kemType == CF_KEM("ML-KEM-512") )  return ::Botan::KyberMode::ML_KEM_512;
+        if ( kemType == CF_KEM("ML-KEM-768") )  return ::Botan::KyberMode::ML_KEM_768;
+        if ( kemType == CF_KEM("ML-KEM-1024") ) return ::Botan::KyberMode::ML_KEM_1024;
+        return std::nullopt;
+    }
+
+    static std::optional<::Botan::DilithiumMode> toDilithiumMode(const uint64_t pqsignType) {
+        if ( pqsignType == CF_PQSIGN("ML-DSA-44") ) return ::Botan::DilithiumMode::ML_DSA_4x4;
+        if ( pqsignType == CF_PQSIGN("ML-DSA-65") ) return ::Botan::DilithiumMode::ML_DSA_6x5;
+        if ( pqsignType == CF_PQSIGN("ML-DSA-87") ) return ::Botan::DilithiumMode::ML_DSA_8x7;
+        return std::nullopt;
     }
 
 } /* namespace Botan_detail */
@@ -1988,6 +2007,194 @@ end:
 
 bool Botan::SupportsModularBignumCalc(void) const {
     return true;
+}
+
+std::optional<component::KEM_KeyPair> Botan::OpKEM_GenerateKeyPair(operation::KEM_GenerateKeyPair& op) {
+    std::optional<component::KEM_KeyPair> ret = std::nullopt;
+
+    try {
+        const auto mode = Botan_detail::toKyberMode(op.kemType.Get());
+        CF_CHECK_NE(mode, std::nullopt);
+
+        if ( op.seed != std::nullopt && op.seed->GetSize() > 0 ) {
+            ::Botan::HMAC_DRBG seeded_rng("SHA-256");
+            seeded_rng.initialize_with(op.seed->GetPtr(), op.seed->GetSize());
+            ::Botan::Kyber_PrivateKey priv(seeded_rng, *mode);
+            auto pub = priv.public_key();
+            ret = component::KEM_KeyPair(
+                component::KEM_PublicKey(pub->raw_public_key_bits().data(), pub->raw_public_key_bits().size()),
+                component::KEM_PrivateKey(priv.raw_private_key_bits().data(), priv.raw_private_key_bits().size())
+            );
+        } else {
+            Datasource ds(op.modifier.GetPtr(), op.modifier.GetSize());
+            BOTAN_FUZZER_RNG;
+            ::Botan::Kyber_PrivateKey priv(rng, *mode);
+            auto pub = priv.public_key();
+            ret = component::KEM_KeyPair(
+                component::KEM_PublicKey(pub->raw_public_key_bits().data(), pub->raw_public_key_bits().size()),
+                component::KEM_PrivateKey(priv.raw_private_key_bits().data(), priv.raw_private_key_bits().size())
+            );
+        }
+    } catch ( ... ) { }
+
+end:
+    return ret;
+}
+
+std::optional<component::KEM_Encapsulated> Botan::OpKEM_Encapsulate(operation::KEM_Encapsulate& op) {
+    std::optional<component::KEM_Encapsulated> ret = std::nullopt;
+
+    try {
+        const auto mode = Botan_detail::toKyberMode(op.kemType.Get());
+        CF_CHECK_NE(mode, std::nullopt);
+
+        ::Botan::Kyber_PublicKey pub(
+            std::span<const uint8_t>(op.pub.GetPtr(), op.pub.GetSize()),
+            *mode
+        );
+        ::Botan::PK_KEM_Encryptor enc(pub, "");
+
+        if ( op.seed != std::nullopt && op.seed->GetSize() > 0 ) {
+            ::Botan::HMAC_DRBG seeded_rng("SHA-256");
+            seeded_rng.initialize_with(op.seed->GetPtr(), op.seed->GetSize());
+            auto result = enc.encrypt(seeded_rng);
+            const auto& ct = result.encapsulated_shared_key();
+            const auto& ss = result.shared_key();
+            ret = component::KEM_Encapsulated(
+                component::KEM_Ciphertext(ct.data(), ct.size()),
+                component::KEM_SharedSecret(ss.data(), ss.size())
+            );
+        } else {
+            Datasource ds(op.modifier.GetPtr(), op.modifier.GetSize());
+            BOTAN_FUZZER_RNG;
+            auto result = enc.encrypt(rng);
+            const auto& ct = result.encapsulated_shared_key();
+            const auto& ss = result.shared_key();
+            ret = component::KEM_Encapsulated(
+                component::KEM_Ciphertext(ct.data(), ct.size()),
+                component::KEM_SharedSecret(ss.data(), ss.size())
+            );
+        }
+    } catch ( ... ) { }
+
+end:
+    return ret;
+}
+
+std::optional<component::KEM_SharedSecret> Botan::OpKEM_Decapsulate(operation::KEM_Decapsulate& op) {
+    std::optional<component::KEM_SharedSecret> ret = std::nullopt;
+
+    try {
+        const auto mode = Botan_detail::toKyberMode(op.kemType.Get());
+        CF_CHECK_NE(mode, std::nullopt);
+
+        ::Botan::Kyber_PrivateKey priv(
+            std::span<const uint8_t>(op.priv.GetPtr(), op.priv.GetSize()),
+            *mode
+        );
+        Datasource ds(op.modifier.GetPtr(), op.modifier.GetSize());
+        BOTAN_FUZZER_RNG;
+        ::Botan::PK_KEM_Decryptor dec(priv, rng, "");
+
+        const auto shared = dec.decrypt(
+            std::span<const uint8_t>(op.ciphertext.GetPtr(), op.ciphertext.GetSize())
+        );
+        ret = component::KEM_SharedSecret(shared.data(), shared.size());
+    } catch ( ... ) { }
+
+end:
+    return ret;
+}
+
+std::optional<component::PQSign_KeyPair> Botan::OpPQSign_GenerateKeyPair(operation::PQSign_GenerateKeyPair& op) {
+    std::optional<component::PQSign_KeyPair> ret = std::nullopt;
+
+    try {
+        const auto mode = Botan_detail::toDilithiumMode(op.pqsignType.Get());
+        CF_CHECK_NE(mode, std::nullopt);
+
+        if ( op.seed != std::nullopt && op.seed->GetSize() > 0 ) {
+            ::Botan::HMAC_DRBG seeded_rng("SHA-256");
+            seeded_rng.initialize_with(op.seed->GetPtr(), op.seed->GetSize());
+            ::Botan::Dilithium_PrivateKey priv(seeded_rng, *mode);
+            auto pub = priv.public_key();
+            ret = component::PQSign_KeyPair(
+                component::PQSign_PublicKey(pub->raw_public_key_bits().data(), pub->raw_public_key_bits().size()),
+                component::PQSign_PrivateKey(priv.raw_private_key_bits().data(), priv.raw_private_key_bits().size())
+            );
+        } else {
+            Datasource ds(op.modifier.GetPtr(), op.modifier.GetSize());
+            BOTAN_FUZZER_RNG;
+            ::Botan::Dilithium_PrivateKey priv(rng, *mode);
+            auto pub = priv.public_key();
+            ret = component::PQSign_KeyPair(
+                component::PQSign_PublicKey(pub->raw_public_key_bits().data(), pub->raw_public_key_bits().size()),
+                component::PQSign_PrivateKey(priv.raw_private_key_bits().data(), priv.raw_private_key_bits().size())
+            );
+        }
+    } catch ( ... ) { }
+
+end:
+    return ret;
+}
+
+std::optional<component::PQSign_Signature> Botan::OpPQSign_Sign(operation::PQSign_Sign& op) {
+    std::optional<component::PQSign_Signature> ret = std::nullopt;
+
+    try {
+        const auto mode = Botan_detail::toDilithiumMode(op.pqsignType.Get());
+        CF_CHECK_NE(mode, std::nullopt);
+
+        /* Context strings are not exposed via PK_Signer for ML-DSA in Botan 3.x */
+        if ( op.context != std::nullopt && op.context->GetSize() > 0 ) {
+            return std::nullopt;
+        }
+
+        ::Botan::Dilithium_PrivateKey priv(
+            std::span<const uint8_t>(op.priv.GetPtr(), op.priv.GetSize()),
+            *mode
+        );
+        Datasource ds(op.modifier.GetPtr(), op.modifier.GetSize());
+        BOTAN_FUZZER_RNG;
+        ::Botan::PK_Signer signer(priv, rng, "Deterministic");
+
+        const auto sig = signer.sign_message(
+            std::span<const uint8_t>(op.message.GetPtr(), op.message.GetSize()),
+            rng
+        );
+        ret = component::PQSign_Signature(sig.data(), sig.size());
+    } catch ( ... ) { }
+
+end:
+    return ret;
+}
+
+std::optional<bool> Botan::OpPQSign_Verify(operation::PQSign_Verify& op) {
+    std::optional<bool> ret = std::nullopt;
+
+    try {
+        const auto mode = Botan_detail::toDilithiumMode(op.pqsignType.Get());
+        CF_CHECK_NE(mode, std::nullopt);
+
+        /* Context strings are not exposed via PK_Verifier for ML-DSA in Botan 3.x */
+        if ( op.context != std::nullopt && op.context->GetSize() > 0 ) {
+            return std::nullopt;
+        }
+
+        ::Botan::Dilithium_PublicKey pub(
+            std::span<const uint8_t>(op.pub.GetPtr(), op.pub.GetSize()),
+            *mode
+        );
+        ::Botan::PK_Verifier ver(pub, "");
+
+        ret = ver.verify_message(
+            std::span<const uint8_t>(op.message.GetPtr(), op.message.GetSize()),
+            std::span<const uint8_t>(op.signature.GetPtr(), op.signature.GetSize())
+        );
+    } catch ( ... ) { }
+
+end:
+    return ret;
 }
 
 } /* namespace module */
