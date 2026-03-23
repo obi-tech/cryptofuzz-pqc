@@ -7,6 +7,7 @@
 #include <botan/internal/barrett.h>
 #include <botan/internal/primality.h>
 #include <botan/system_rng.h>
+#include <botan/exceptn.h>
 
 #include "bn_ops.h"
 
