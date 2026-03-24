@@ -5,6 +5,9 @@
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
 #include <openssl/cmac.h>
+#if defined(CRYPTOFUZZ_OPENSSL_NATIVE_PQC)
+#include <openssl/ml_kem.h>
+#endif
 #if !defined(CRYPTOFUZZ_LIBRESSL) && !defined(CRYPTOFUZZ_OPENSSL_102)
  #if defined(CRYPTOFUZZ_BORINGSSL)
   #include <openssl/hkdf.h>
@@ -121,6 +124,14 @@ class OpenSSL : public Module {
         std::optional<bool> OpECC_Point_Cmp(operation::ECC_Point_Cmp& op) override;
         std::optional<component::Bignum> OpBignumCalc(operation::BignumCalc& op) override;
         bool SupportsModularBignumCalc(void) const override;
+#endif
+#if defined(CRYPTOFUZZ_OPENSSL_NATIVE_PQC)
+        std::optional<component::KEM_KeyPair>      OpKEM_GenerateKeyPair(operation::KEM_GenerateKeyPair& op) override;
+        std::optional<component::KEM_Encapsulated> OpKEM_Encapsulate(operation::KEM_Encapsulate& op) override;
+        std::optional<component::KEM_SharedSecret> OpKEM_Decapsulate(operation::KEM_Decapsulate& op) override;
+        std::optional<component::PQSign_KeyPair>   OpPQSign_GenerateKeyPair(operation::PQSign_GenerateKeyPair& op) override;
+        std::optional<component::PQSign_Signature> OpPQSign_Sign(operation::PQSign_Sign& op) override;
+        std::optional<bool>                        OpPQSign_Verify(operation::PQSign_Verify& op) override;
 #endif
 };
 

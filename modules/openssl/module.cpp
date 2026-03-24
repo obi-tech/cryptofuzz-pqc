@@ -240,7 +240,9 @@ const EVP_MD* OpenSSL::toEVPMD(const component::DigestType& digestType) const {
         { CF_DIGEST("SHA256"), EVP_sha256() },
         { CF_DIGEST("SHA384"), EVP_sha384() },
         { CF_DIGEST("SHA512"), EVP_sha512() },
+#ifndef OPENSSL_NO_MD2
         { CF_DIGEST("MD2"), EVP_md2() },
+#endif
         { CF_DIGEST("MD4"), EVP_md4() },
         { CF_DIGEST("MD5"), EVP_md5() },
         { CF_DIGEST("MD5_SHA1"), EVP_md5_sha1() },
@@ -1148,6 +1150,8 @@ const EVP_CIPHER* OpenSSL::toEVPCIPHER(const component::SymmetricCipherType ciph
             return EVP_cast5_ofb();
         case CF_CIPHER("CAST5_CBC"):
             return EVP_cast5_cbc();
+
+#ifndef OPENSSL_NO_RC5
         case CF_CIPHER("RC5_32_12_16_ECB"):
             return EVP_rc5_32_12_16_ecb();
         case CF_CIPHER("RC5_32_12_16_CFB"):
@@ -1156,6 +1160,8 @@ const EVP_CIPHER* OpenSSL::toEVPCIPHER(const component::SymmetricCipherType ciph
             return EVP_rc5_32_12_16_ofb();
         case CF_CIPHER("RC5_32_12_16_CBC"):
             return EVP_rc5_32_12_16_cbc();
+
+#endif /* OPENSSL_NO_RC5 */
         case CF_CIPHER("AES_128_ECB"):
             return EVP_aes_128_ecb();
         case CF_CIPHER("AES_128_CBC"):
@@ -4681,6 +4687,534 @@ bool OpenSSL::SupportsModularBignumCalc(void) const {
 }
 
 #endif
+
+
+#if defined(CRYPTOFUZZ_OPENSSL_NATIVE_PQC)
+#include <openssl/core_names.h>
+#include <vector>
+#include <string.h>
+
+namespace openssl_pqc_detail {
+
+/* -----------------------------------------------------------------------
+ * NIST AES-256-CTR DRBG — matches OQS_randombytes_nist_kat_init_256bit /
+ * OQS_randombytes_nist_kat exactly so seeded cross-module comparisons pass.
+ * ----------------------------------------------------------------------- */
+struct NistDRBG {
+    uint8_t key[32];
+    uint8_t v[16];
+
+    void update(const uint8_t* data48) {
+        uint8_t temp[48];
+        AES_KEY aes_key;
+        AES_set_encrypt_key(key, 256, &aes_key);
+        for (int i = 0; i < 3; i++) {
+            /* V = V + 1 mod 2^128 (big-endian) */
+            for (int j = 15; j >= 0; j--) {
+                if (v[j] == 0xff) { v[j] = 0x00; }
+                else { v[j]++; break; }
+            }
+            AES_ecb_encrypt(v, temp + 16 * i, &aes_key, AES_ENCRYPT);
+        }
+        if (data48 != nullptr) {
+            for (int i = 0; i < 48; i++) temp[i] ^= data48[i];
+        }
+        memcpy(key, temp,      32);
+        memcpy(v,   temp + 32, 16);
+    }
+
+    void init(const uint8_t* seed, size_t seed_len) {
+        uint8_t entropy[48] = {0};
+        size_t copy_len = seed_len < 48 ? seed_len : 48;
+        memcpy(entropy, seed, copy_len);
+        memset(key, 0, 32);
+        memset(v,   0, 16);
+        update(entropy);
+    }
+
+    void generate(uint8_t* out, size_t n) {
+        AES_KEY aes_key;
+        AES_set_encrypt_key(key, 256, &aes_key);
+        uint8_t block[16];
+        size_t pos = 0;
+        while (pos < n) {
+            for (int j = 15; j >= 0; j--) {
+                if (v[j] == 0xff) { v[j] = 0x00; }
+                else { v[j]++; break; }
+            }
+            AES_ecb_encrypt(v, block, &aes_key, AES_ENCRYPT);
+            size_t to_copy = (n - pos) < 16 ? (n - pos) : 16;
+            memcpy(out + pos, block, to_copy);
+            pos += to_copy;
+        }
+        update(nullptr);
+    }
+};
+
+static NistDRBG pqc_drbg;
+
+static int nist_rand_bytes(unsigned char* buf, int num) {
+    if (num < 0) return 0;
+    pqc_drbg.generate(buf, (size_t)num);
+    return 1;
+}
+static int nist_rand_status(void) { return 1; }
+
+static RAND_METHOD nist_drbg_rand_method = {
+    nullptr,
+    nist_rand_bytes,
+    nullptr,
+    nullptr,
+    nist_rand_bytes,
+    nist_rand_status
+};
+
+/* ----------------------------------------------------------------------- */
+
+static const char* kemTypeToAlgName(uint64_t t) {
+    if (t == CF_KEM("ML-KEM-512"))  return "ML-KEM-512";
+    if (t == CF_KEM("ML-KEM-768"))  return "ML-KEM-768";
+    if (t == CF_KEM("ML-KEM-1024")) return "ML-KEM-1024";
+    return nullptr;
+}
+
+static const char* pqsignTypeToAlgName(uint64_t t) {
+    if (t == CF_PQSIGN("ML-DSA-44")) return "ML-DSA-44";
+    if (t == CF_PQSIGN("ML-DSA-65")) return "ML-DSA-65";
+    if (t == CF_PQSIGN("ML-DSA-87")) return "ML-DSA-87";
+    return nullptr;
+}
+
+/* Export raw public key bytes from an EVP_PKEY. */
+static bool exportPubKey(EVP_PKEY* pkey, std::vector<uint8_t>& out) {
+    size_t len = 0;
+    if (EVP_PKEY_get_raw_public_key(pkey, nullptr, &len) != 1) return false;
+    out.resize(len);
+    if (EVP_PKEY_get_raw_public_key(pkey, out.data(), &len) != 1) return false;
+    out.resize(len);
+    return true;
+}
+
+/*
+ * Export private key in EXPANDED format (dk for ML-KEM, sk for ML-DSA).
+ * We use OSSL_PKEY_PARAM_PRIV_KEY; if prefer_seed was disabled during key
+ * creation this returns the full expanded key.  As a safety net we check that
+ * the returned size is NOT the seed size (64 / 32 bytes) — if it is, we fail
+ * fast rather than polluting the mutator pool with incompatible seed-format
+ * keys that liboqs cannot parse.
+ */
+static bool exportPrivKey(EVP_PKEY* pkey, std::vector<uint8_t>& out) {
+    size_t len = 0;
+    if (EVP_PKEY_get_raw_private_key(pkey, nullptr, &len) != 1) return false;
+    /* Reject seed-only export (would break cross-module decapsulate/verify) */
+    if (len == 64 || len == 32) return false;
+    out.resize(len);
+    if (EVP_PKEY_get_raw_private_key(pkey, out.data(), &len) != 1) return false;
+    out.resize(len);
+    return true;
+}
+
+/* Import ML-KEM public key from raw bytes. */
+static EVP_PKEY* importKEMPubKey(const char* alg, const uint8_t* data, size_t len) {
+    EVP_PKEY_CTX* ctx = EVP_PKEY_CTX_new_from_name(nullptr, alg, nullptr);
+    if (ctx == nullptr) return nullptr;
+
+    EVP_PKEY* pkey = nullptr;
+    OSSL_PARAM params[2];
+    params[0] = OSSL_PARAM_construct_octet_string(
+        OSSL_PKEY_PARAM_PUB_KEY, const_cast<uint8_t*>(data), len);
+    params[1] = OSSL_PARAM_construct_end();
+
+    if (EVP_PKEY_fromdata_init(ctx) != 1 ||
+        EVP_PKEY_fromdata(ctx, &pkey, EVP_PKEY_PUBLIC_KEY, params) != 1) {
+        EVP_PKEY_free(pkey);
+        pkey = nullptr;
+    }
+    EVP_PKEY_CTX_free(ctx);
+    return pkey;
+}
+
+/*
+ * Import ML-KEM private key.  Auto-detect format by size:
+ *   64 bytes  → seed (d||z), use OSSL_PKEY_PARAM_ML_KEM_SEED
+ *   other     → full dk, use OSSL_PKEY_PARAM_PRIV_KEY
+ * In both cases also request expanded export (prefer_seed=0).
+ */
+static EVP_PKEY* importKEMPrivKey(const char* alg, const uint8_t* data, size_t len) {
+    EVP_PKEY_CTX* ctx = EVP_PKEY_CTX_new_from_name(nullptr, alg, nullptr);
+    if (ctx == nullptr) return nullptr;
+
+    static const int zero = 0;
+    EVP_PKEY* pkey = nullptr;
+    OSSL_PARAM params[3];
+
+    if (len == 64) {
+        params[0] = OSSL_PARAM_construct_octet_string(
+            OSSL_PKEY_PARAM_ML_KEM_SEED, const_cast<uint8_t*>(data), len);
+    } else {
+        params[0] = OSSL_PARAM_construct_octet_string(
+            OSSL_PKEY_PARAM_PRIV_KEY, const_cast<uint8_t*>(data), len);
+    }
+    params[1] = OSSL_PARAM_construct_int(
+        OSSL_PKEY_PARAM_ML_KEM_PREFER_SEED, const_cast<int*>(&zero));
+    params[2] = OSSL_PARAM_construct_end();
+
+    if (EVP_PKEY_fromdata_init(ctx) != 1 ||
+        EVP_PKEY_fromdata(ctx, &pkey, EVP_PKEY_KEYPAIR, params) != 1) {
+        EVP_PKEY_free(pkey);
+        pkey = nullptr;
+    }
+    EVP_PKEY_CTX_free(ctx);
+    return pkey;
+}
+
+/* Import ML-DSA public key from raw bytes. */
+static EVP_PKEY* importDSAPubKey(const char* alg, const uint8_t* data, size_t len) {
+    EVP_PKEY_CTX* ctx = EVP_PKEY_CTX_new_from_name(nullptr, alg, nullptr);
+    if (ctx == nullptr) return nullptr;
+
+    EVP_PKEY* pkey = nullptr;
+    OSSL_PARAM params[2];
+    params[0] = OSSL_PARAM_construct_octet_string(
+        OSSL_PKEY_PARAM_PUB_KEY, const_cast<uint8_t*>(data), len);
+    params[1] = OSSL_PARAM_construct_end();
+
+    if (EVP_PKEY_fromdata_init(ctx) != 1 ||
+        EVP_PKEY_fromdata(ctx, &pkey, EVP_PKEY_PUBLIC_KEY, params) != 1) {
+        EVP_PKEY_free(pkey);
+        pkey = nullptr;
+    }
+    EVP_PKEY_CTX_free(ctx);
+    return pkey;
+}
+
+/*
+ * Import ML-DSA private key.  Auto-detect format by size:
+ *   32 bytes → seed xi, use OSSL_PKEY_PARAM_ML_DSA_SEED
+ *   other    → full sk, use OSSL_PKEY_PARAM_PRIV_KEY
+ */
+static EVP_PKEY* importDSAPrivKey(const char* alg, const uint8_t* data, size_t len) {
+    EVP_PKEY_CTX* ctx = EVP_PKEY_CTX_new_from_name(nullptr, alg, nullptr);
+    if (ctx == nullptr) return nullptr;
+
+    static const int zero = 0;
+    EVP_PKEY* pkey = nullptr;
+    OSSL_PARAM params[3];
+
+    if (len == 32) {
+        params[0] = OSSL_PARAM_construct_octet_string(
+            OSSL_PKEY_PARAM_ML_DSA_SEED, const_cast<uint8_t*>(data), len);
+    } else {
+        params[0] = OSSL_PARAM_construct_octet_string(
+            OSSL_PKEY_PARAM_PRIV_KEY, const_cast<uint8_t*>(data), len);
+    }
+    params[1] = OSSL_PARAM_construct_int(
+        OSSL_PKEY_PARAM_ML_DSA_PREFER_SEED, const_cast<int*>(&zero));
+    params[2] = OSSL_PARAM_construct_end();
+
+    if (EVP_PKEY_fromdata_init(ctx) != 1 ||
+        EVP_PKEY_fromdata(ctx, &pkey, EVP_PKEY_KEYPAIR, params) != 1) {
+        EVP_PKEY_free(pkey);
+        pkey = nullptr;
+    }
+    EVP_PKEY_CTX_free(ctx);
+    return pkey;
+}
+
+} /* namespace openssl_pqc_detail */
+
+/* ===================================================================== */
+/*  ML-KEM operations                                                     */
+/* ===================================================================== */
+
+std::optional<component::KEM_KeyPair> OpenSSL::OpKEM_GenerateKeyPair(
+    operation::KEM_GenerateKeyPair& op)
+{
+    std::optional<component::KEM_KeyPair> ret = std::nullopt;
+    EVP_PKEY* pkey = nullptr;
+    EVP_PKEY_CTX* ctx = nullptr;
+
+    const char* alg = openssl_pqc_detail::kemTypeToAlgName(op.kemType.Get());
+    CF_CHECK_NE(alg, nullptr);
+
+    ctx = EVP_PKEY_CTX_new_from_name(nullptr, alg, nullptr);
+    CF_CHECK_NE(ctx, nullptr);
+
+    if (op.seed != std::nullopt && op.seed->GetSize() > 0) {
+        /* Derive 64-byte ML-KEM seed using NIST AES-CTR DRBG (matches liboqs) */
+        uint8_t kem_seed[64];
+        openssl_pqc_detail::pqc_drbg.init(op.seed->GetPtr(nullptr), op.seed->GetSize());
+        openssl_pqc_detail::pqc_drbg.generate(kem_seed, 64);
+
+        static const int zero = 0;
+        OSSL_PARAM params[3];
+        params[0] = OSSL_PARAM_construct_octet_string(
+            OSSL_PKEY_PARAM_ML_KEM_SEED, kem_seed, 64);
+        params[1] = OSSL_PARAM_construct_int(
+            OSSL_PKEY_PARAM_ML_KEM_PREFER_SEED, const_cast<int*>(&zero));
+        params[2] = OSSL_PARAM_construct_end();
+
+        CF_CHECK_EQ(EVP_PKEY_fromdata_init(ctx), 1);
+        CF_CHECK_EQ(EVP_PKEY_fromdata(ctx, &pkey, EVP_PKEY_KEYPAIR, params), 1);
+    } else {
+        static const int zero = 0;
+        OSSL_PARAM params[2];
+        params[0] = OSSL_PARAM_construct_int(
+            OSSL_PKEY_PARAM_ML_KEM_PREFER_SEED, const_cast<int*>(&zero));
+        params[1] = OSSL_PARAM_construct_end();
+
+        CF_CHECK_EQ(EVP_PKEY_keygen_init(ctx), 1);
+        CF_CHECK_EQ(EVP_PKEY_CTX_set_params(ctx, params), 1);
+        CF_CHECK_EQ(EVP_PKEY_keygen(ctx, &pkey), 1);
+    }
+
+    {
+        std::vector<uint8_t> pub_bytes, priv_bytes;
+        CF_CHECK_EQ(openssl_pqc_detail::exportPubKey(pkey, pub_bytes), true);
+        CF_CHECK_EQ(openssl_pqc_detail::exportPrivKey(pkey, priv_bytes), true);
+
+        ret = component::KEM_KeyPair(
+            component::KEM_PublicKey(pub_bytes.data(), pub_bytes.size()),
+            component::KEM_PrivateKey(priv_bytes.data(), priv_bytes.size()));
+    }
+
+end:
+    EVP_PKEY_free(pkey);
+    EVP_PKEY_CTX_free(ctx);
+    return ret;
+}
+
+std::optional<component::KEM_Encapsulated> OpenSSL::OpKEM_Encapsulate(
+    operation::KEM_Encapsulate& op)
+{
+    std::optional<component::KEM_Encapsulated> ret = std::nullopt;
+    EVP_PKEY* pkey = nullptr;
+    EVP_PKEY_CTX* ctx = nullptr;
+    bool rand_replaced = false;
+
+    const char* alg = openssl_pqc_detail::kemTypeToAlgName(op.kemType.Get());
+    CF_CHECK_NE(alg, nullptr);
+
+    pkey = openssl_pqc_detail::importKEMPubKey(alg, op.pub.GetPtr(), op.pub.GetSize());
+    CF_CHECK_NE(pkey, nullptr);
+
+    if (op.seed != std::nullopt && op.seed->GetSize() > 0) {
+        openssl_pqc_detail::pqc_drbg.init(op.seed->GetPtr(nullptr), op.seed->GetSize());
+        RAND_set_rand_method(&openssl_pqc_detail::nist_drbg_rand_method);
+        rand_replaced = true;
+    }
+
+    ctx = EVP_PKEY_CTX_new_from_pkey(nullptr, pkey, nullptr);
+    CF_CHECK_NE(ctx, nullptr);
+    CF_CHECK_EQ(EVP_PKEY_encapsulate_init(ctx, nullptr), 1);
+
+    {
+        size_t ct_len = 0, ss_len = 0;
+        CF_CHECK_EQ(EVP_PKEY_encapsulate(ctx, nullptr, &ct_len, nullptr, &ss_len), 1);
+
+        std::vector<uint8_t> ct(ct_len), ss(ss_len);
+        CF_CHECK_EQ(EVP_PKEY_encapsulate(ctx, ct.data(), &ct_len, ss.data(), &ss_len), 1);
+
+        ret = component::KEM_Encapsulated(
+            component::KEM_Ciphertext(ct.data(), ct_len),
+            component::KEM_SharedSecret(ss.data(), ss_len));
+    }
+
+end:
+    if (rand_replaced) {
+        RAND_set_rand_method(&cryptofuzz_openssl_rand_method);
+    }
+    EVP_PKEY_CTX_free(ctx);
+    EVP_PKEY_free(pkey);
+    return ret;
+}
+
+std::optional<component::KEM_SharedSecret> OpenSSL::OpKEM_Decapsulate(
+    operation::KEM_Decapsulate& op)
+{
+    std::optional<component::KEM_SharedSecret> ret = std::nullopt;
+    EVP_PKEY* pkey = nullptr;
+    EVP_PKEY_CTX* ctx = nullptr;
+
+    const char* alg = openssl_pqc_detail::kemTypeToAlgName(op.kemType.Get());
+    CF_CHECK_NE(alg, nullptr);
+
+    pkey = openssl_pqc_detail::importKEMPrivKey(
+        alg, op.priv.GetPtr(), op.priv.GetSize());
+    CF_CHECK_NE(pkey, nullptr);
+
+    ctx = EVP_PKEY_CTX_new_from_pkey(nullptr, pkey, nullptr);
+    CF_CHECK_NE(ctx, nullptr);
+    CF_CHECK_EQ(EVP_PKEY_decapsulate_init(ctx, nullptr), 1);
+
+    {
+        size_t ss_len = 0;
+        CF_CHECK_EQ(EVP_PKEY_decapsulate(
+            ctx, nullptr, &ss_len,
+            op.ciphertext.GetPtr(), op.ciphertext.GetSize()), 1);
+
+        std::vector<uint8_t> ss(ss_len);
+        CF_CHECK_EQ(EVP_PKEY_decapsulate(
+            ctx, ss.data(), &ss_len,
+            op.ciphertext.GetPtr(), op.ciphertext.GetSize()), 1);
+
+        ret = component::KEM_SharedSecret(ss.data(), ss_len);
+    }
+
+end:
+    EVP_PKEY_CTX_free(ctx);
+    EVP_PKEY_free(pkey);
+    return ret;
+}
+
+/* ===================================================================== */
+/*  ML-DSA operations                                                     */
+/* ===================================================================== */
+
+std::optional<component::PQSign_KeyPair> OpenSSL::OpPQSign_GenerateKeyPair(
+    operation::PQSign_GenerateKeyPair& op)
+{
+    std::optional<component::PQSign_KeyPair> ret = std::nullopt;
+    EVP_PKEY* pkey = nullptr;
+    EVP_PKEY_CTX* ctx = nullptr;
+
+    const char* alg = openssl_pqc_detail::pqsignTypeToAlgName(op.pqsignType.Get());
+    CF_CHECK_NE(alg, nullptr);
+
+    ctx = EVP_PKEY_CTX_new_from_name(nullptr, alg, nullptr);
+    CF_CHECK_NE(ctx, nullptr);
+
+    if (op.seed != std::nullopt && op.seed->GetSize() > 0) {
+        /* Derive 32-byte ML-DSA seed via NIST AES-CTR DRBG (matches liboqs) */
+        uint8_t dsa_seed[32];
+        openssl_pqc_detail::pqc_drbg.init(op.seed->GetPtr(nullptr), op.seed->GetSize());
+        openssl_pqc_detail::pqc_drbg.generate(dsa_seed, 32);
+
+        static const int zero = 0;
+        OSSL_PARAM params[3];
+        params[0] = OSSL_PARAM_construct_octet_string(
+            OSSL_PKEY_PARAM_ML_DSA_SEED, dsa_seed, 32);
+        params[1] = OSSL_PARAM_construct_int(
+            OSSL_PKEY_PARAM_ML_DSA_PREFER_SEED, const_cast<int*>(&zero));
+        params[2] = OSSL_PARAM_construct_end();
+
+        CF_CHECK_EQ(EVP_PKEY_fromdata_init(ctx), 1);
+        CF_CHECK_EQ(EVP_PKEY_fromdata(ctx, &pkey, EVP_PKEY_KEYPAIR, params), 1);
+    } else {
+        static const int zero = 0;
+        OSSL_PARAM params[2];
+        params[0] = OSSL_PARAM_construct_int(
+            OSSL_PKEY_PARAM_ML_DSA_PREFER_SEED, const_cast<int*>(&zero));
+        params[1] = OSSL_PARAM_construct_end();
+
+        CF_CHECK_EQ(EVP_PKEY_keygen_init(ctx), 1);
+        CF_CHECK_EQ(EVP_PKEY_CTX_set_params(ctx, params), 1);
+        CF_CHECK_EQ(EVP_PKEY_keygen(ctx, &pkey), 1);
+    }
+
+    {
+        std::vector<uint8_t> pub_bytes, priv_bytes;
+        CF_CHECK_EQ(openssl_pqc_detail::exportPubKey(pkey, pub_bytes), true);
+        CF_CHECK_EQ(openssl_pqc_detail::exportPrivKey(pkey, priv_bytes), true);
+
+        ret = component::PQSign_KeyPair(
+            component::PQSign_PublicKey(pub_bytes.data(), pub_bytes.size()),
+            component::PQSign_PrivateKey(priv_bytes.data(), priv_bytes.size()));
+    }
+
+end:
+    EVP_PKEY_free(pkey);
+    EVP_PKEY_CTX_free(ctx);
+    return ret;
+}
+
+std::optional<component::PQSign_Signature> OpenSSL::OpPQSign_Sign(
+    operation::PQSign_Sign& op)
+{
+    /* Cross-module sign comparison is skipped by the executor. */
+
+    /* Context strings are not yet supported in this implementation. */
+    if (op.context != std::nullopt) {
+        return std::nullopt;
+    }
+
+    std::optional<component::PQSign_Signature> ret = std::nullopt;
+    EVP_PKEY* pkey = nullptr;
+    EVP_MD_CTX* mdctx = nullptr;
+
+    const char* alg = openssl_pqc_detail::pqsignTypeToAlgName(op.pqsignType.Get());
+    CF_CHECK_NE(alg, nullptr);
+
+    pkey = openssl_pqc_detail::importDSAPrivKey(
+        alg, op.priv.GetPtr(), op.priv.GetSize());
+    CF_CHECK_NE(pkey, nullptr);
+
+    mdctx = EVP_MD_CTX_new();
+    CF_CHECK_NE(mdctx, nullptr);
+
+    /* NULL digest = pure mode: ML-DSA hashes the message internally */
+    CF_CHECK_EQ(EVP_DigestSignInit(mdctx, nullptr, nullptr, nullptr, pkey), 1);
+    CF_CHECK_EQ(EVP_DigestSignUpdate(mdctx, op.message.GetPtr(nullptr), op.message.GetSize()), 1);
+
+    {
+        size_t sig_len = 0;
+        CF_CHECK_EQ(EVP_DigestSignFinal(mdctx, nullptr, &sig_len), 1);
+
+        std::vector<uint8_t> sig(sig_len);
+        CF_CHECK_EQ(EVP_DigestSignFinal(mdctx, sig.data(), &sig_len), 1);
+
+        ret = component::PQSign_Signature(sig.data(), sig_len);
+    }
+
+end:
+    EVP_MD_CTX_free(mdctx);
+    EVP_PKEY_free(pkey);
+    return ret;
+}
+
+std::optional<bool> OpenSSL::OpPQSign_Verify(
+    operation::PQSign_Verify& op)
+{
+    /* Context strings are not yet supported in this implementation. */
+    if (op.context != std::nullopt) {
+        return std::nullopt;
+    }
+
+    std::optional<bool> ret = std::nullopt;
+    EVP_PKEY* pkey = nullptr;
+    EVP_MD_CTX* mdctx = nullptr;
+
+    const char* alg = openssl_pqc_detail::pqsignTypeToAlgName(op.pqsignType.Get());
+    CF_CHECK_NE(alg, nullptr);
+
+    pkey = openssl_pqc_detail::importDSAPubKey(
+        alg, op.pub.GetPtr(), op.pub.GetSize());
+    CF_CHECK_NE(pkey, nullptr);
+
+    mdctx = EVP_MD_CTX_new();
+    CF_CHECK_NE(mdctx, nullptr);
+
+    CF_CHECK_EQ(EVP_DigestVerifyInit(mdctx, nullptr, nullptr, nullptr, pkey), 1);
+    CF_CHECK_EQ(EVP_DigestVerifyUpdate(mdctx, op.message.GetPtr(nullptr), op.message.GetSize()), 1);
+
+    {
+        int result = EVP_DigestVerifyFinal(
+            mdctx,
+            op.signature.GetPtr(),
+            op.signature.GetSize());
+        /* result == 1: valid, result == 0: invalid, result < 0: error */
+        if (result >= 0) {
+            ret = (result == 1);
+        }
+    }
+
+end:
+    EVP_MD_CTX_free(mdctx);
+    EVP_PKEY_free(pkey);
+    return ret;
+}
+
+#endif /* CRYPTOFUZZ_OPENSSL_NATIVE_PQC */
 
 } /* namespace module */
 } /* namespace cryptofuzz */
