@@ -2,6 +2,11 @@ all: module.a
 
 CXXFLAGS += -Wall -Wextra -Wno-deprecated-declarations -Werror -std=c++17 -I ../../include -I ../../fuzzing-headers/include -I ../../fuzzing-headers/include -DFUZZING_HEADERS_NO_IMPL
 
+# Auto-detect OpenSSL native PQC support (ML-KEM / ML-DSA, available in OpenSSL 3.4+)
+ifneq (,$(wildcard $(OPENSSL_INCLUDE_PATH)/openssl/ml_kem.h))
+	CXXFLAGS += -DCRYPTOFUZZ_OPENSSL_NATIVE_PQC
+endif
+
 ifneq (,$(findstring fsanitize=memory,$(CFLAGS)))
 	CXXFLAGS += -DSANITIZER_MSAN
 endif
