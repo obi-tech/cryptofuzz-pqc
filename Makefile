@@ -35,20 +35,25 @@ cryptofuzz : $(OBJECT_FILES) third_party/cpu_features/build/libcpu_features.a
 generate_dict: generate_dict.cpp repository_map.h
 	$(CXX) $(CXXFLAGS) generate_dict.cpp -o generate_dict
 
+# Corpus generators are standalone tools — no FUZZING_HEADERS_NO_IMPL
+CORPUS_CXXFLAGS = -Wall -Wextra -std=c++17 -I include/ -I . -I fuzzing-headers/include
+# Valid seeds generators link liboqs.a which was built with sanitizers — must match
+VALID_SEEDS_CXXFLAGS = $(CORPUS_CXXFLAGS) -fsanitize=address,undefined
+
 generate_corpus: generate_corpus.cpp
-	$(CXX) $(CXXFLAGS) generate_corpus.cpp -o generate_corpus
+	$(CXX) $(CORPUS_CXXFLAGS) generate_corpus.cpp -o generate_corpus
 
 generate_kem_corpus: generate_kem_corpus.cpp
-	$(CXX) $(CXXFLAGS) generate_kem_corpus.cpp -o generate_kem_corpus
+	$(CXX) $(CORPUS_CXXFLAGS) generate_kem_corpus.cpp -o generate_kem_corpus
 
 generate_pqsign_corpus: generate_pqsign_corpus.cpp
-	$(CXX) $(CXXFLAGS) generate_pqsign_corpus.cpp -o generate_pqsign_corpus
+	$(CXX) $(CORPUS_CXXFLAGS) generate_pqsign_corpus.cpp -o generate_pqsign_corpus
 
 generate_kem_valid_seeds: generate_kem_valid_seeds.cpp
-	$(CXX) $(CXXFLAGS) -I$(LIBOQS_INCLUDE_PATH) generate_kem_valid_seeds.cpp $(LIBOQS_A_PATH) -o generate_kem_valid_seeds
+	$(CXX) $(VALID_SEEDS_CXXFLAGS) -I$(LIBOQS_INCLUDE_PATH) generate_kem_valid_seeds.cpp $(LIBOQS_A_PATH) -o generate_kem_valid_seeds
 
 generate_pqsign_valid_seeds: generate_pqsign_valid_seeds.cpp
-	$(CXX) $(CXXFLAGS) -I$(LIBOQS_INCLUDE_PATH) generate_pqsign_valid_seeds.cpp $(LIBOQS_A_PATH) -o generate_pqsign_valid_seeds
+	$(CXX) $(VALID_SEEDS_CXXFLAGS) -I$(LIBOQS_INCLUDE_PATH) generate_pqsign_valid_seeds.cpp $(LIBOQS_A_PATH) -o generate_pqsign_valid_seeds
 
 clean:
 	rm -rf $(OBJECT_FILES) $(REPOSITORY_HEADERS) cryptofuzz generate_dict generate_corpus \
