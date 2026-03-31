@@ -2877,7 +2877,11 @@ void ExecutorBase<component::KEM_KeyPair, operation::KEM_GenerateKeyPair>::compa
         std::vector<std::string> moduleNames;
         for (size_t i = 0; i < results.size(); i++) {
             std::cout << "Module " << operations[i].first->name << ":\n";
-            std::cout << util::ToString(results[i].second.value()) << "\n";
+            if (results[i].second.has_value()) {
+                std::cout << util::ToString(results[i].second.value()) << "\n";
+            } else {
+                std::cout << "(nullopt)\n";
+            }
             moduleNames.push_back(operations[i].first->name);
         }
         abort(
@@ -2905,6 +2909,7 @@ void ExecutorBase<component::KEM_KeyPair, operation::KEM_GenerateKeyPair>::postp
 template<> 
 std::optional<component::KEM_KeyPair> ExecutorBase<component::KEM_KeyPair, operation::KEM_GenerateKeyPair>::callModule(
     std::shared_ptr<Module> module, operation::KEM_GenerateKeyPair& op) const {
+    RETURN_IF_DISABLED(options.kemTypes, op.kemType.Get());
     return module->OpKEM_GenerateKeyPair(op);
 }
 
@@ -2947,7 +2952,11 @@ void ExecutorBase<component::KEM_Encapsulated, operation::KEM_Encapsulate>::comp
         std::vector<std::string> moduleNames;
         for (size_t i = 0; i < results.size(); i++) {
             std::cout << "Module " << operations[i].first->name << ":\n";
-            std::cout << util::ToString(results[i].second.value()) << "\n";
+            if (results[i].second.has_value()) {
+                std::cout << util::ToString(results[i].second.value()) << "\n";
+            } else {
+                std::cout << "(nullopt)\n";
+            }
             moduleNames.push_back(operations[i].first->name);
         }
         abort(
@@ -2975,6 +2984,7 @@ void ExecutorBase<component::KEM_Encapsulated, operation::KEM_Encapsulate>::post
 template<> 
 std::optional<component::KEM_Encapsulated> ExecutorBase<component::KEM_Encapsulated, operation::KEM_Encapsulate>::callModule(
     std::shared_ptr<Module> module, operation::KEM_Encapsulate& op) const {
+    RETURN_IF_DISABLED(options.kemTypes, op.kemType.Get());
     return module->OpKEM_Encapsulate(op);
 }
 
@@ -3005,7 +3015,11 @@ void ExecutorBase<component::KEM_SharedSecret, operation::KEM_Decapsulate>::comp
         std::vector<std::string> moduleNames;
         for (size_t i = 0; i < results.size(); i++) {
             std::cout << "Module " << operations[i].first->name << ":\n";
-            std::cout << util::ToString(results[i].second.value()) << "\n";
+            if (results[i].second.has_value()) {
+                std::cout << util::ToString(results[i].second.value()) << "\n";
+            } else {
+                std::cout << "(nullopt)\n";
+            }
             moduleNames.push_back(operations[i].first->name);
         }
         abort(
@@ -3029,6 +3043,7 @@ void ExecutorBase<component::KEM_SharedSecret, operation::KEM_Decapsulate>::post
 template<>
 std::optional<component::KEM_SharedSecret> ExecutorBase<component::KEM_SharedSecret, operation::KEM_Decapsulate>::callModule(
     std::shared_ptr<Module> module, operation::KEM_Decapsulate& op) const {
+    RETURN_IF_DISABLED(options.kemTypes, op.kemType.Get());
     return module->OpKEM_Decapsulate(op);
 }
 
@@ -3071,7 +3086,11 @@ void ExecutorBase<component::PQSign_KeyPair, operation::PQSign_GenerateKeyPair>:
         std::vector<std::string> moduleNames;
         for (size_t i = 0; i < results.size(); i++) {
             std::cout << "Module " << operations[i].first->name << ":\n";
-            std::cout << util::ToString(results[i].second.value()) << "\n";
+            if (results[i].second.has_value()) {
+                std::cout << util::ToString(results[i].second.value()) << "\n";
+            } else {
+                std::cout << "(nullopt)\n";
+            }
             moduleNames.push_back(operations[i].first->name);
         }
         abort(
