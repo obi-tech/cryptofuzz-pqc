@@ -140,6 +140,26 @@ namespace Botan_detail {
 
             std::string name() const override { return "Fuzzer_RNG"; }
     };
+
+    /* FIPS 203/204 deterministic RNG: returns seed bytes verbatim, then zeroes */
+    class FixedSeedRNG final : public ::Botan::RandomNumberGenerator {
+        private:
+            const uint8_t* m_data;
+            size_t m_len;
+            size_t m_pos = 0;
+        public:
+            FixedSeedRNG(const uint8_t* data, size_t len) : m_data(data), m_len(len) {}
+            bool is_seeded() const override { return true; }
+            bool accepts_input() const override { return false; }
+            void clear() override { m_pos = 0; }
+            std::string name() const override { return "FixedSeedRNG"; }
+            void fill_bytes_with_input(
+                    std::span<uint8_t> output,
+                    std::span<const uint8_t>) override {
+                for (auto& b : output)
+                    b = (m_pos < m_len) ? m_data[m_pos++] : 0;
+            }
+    };
 #endif /* CRYPTOFUZZ_BOTAN_IS_ORACLE */
 
     const std::string parenthesize(const std::string parent, const std::string child) {
@@ -2017,9 +2037,10 @@ std::optional<component::KEM_KeyPair> Botan::OpKEM_GenerateKeyPair(operation::KE
         CF_CHECK_NE(mode, std::nullopt);
 
         if ( op.seed != std::nullopt && op.seed->GetSize() > 0 ) {
-            ::Botan::HMAC_DRBG seeded_rng("SHA-256");
-            seeded_rng.initialize_with(op.seed->GetPtr(), op.seed->GetSize());
-            ::Botan::Kyber_PrivateKey priv(seeded_rng, *mode);
+            /* FIPS 203 §7.1: KeyGen draws exactly 64 bytes (d‖z) */
+            CF_CHECK_EQ(op.seed->GetSize(), 64);
+            Botan_detail::FixedSeedRNG rng(op.seed->GetPtr(), 64);
+            ::Botan::Kyber_PrivateKey priv(rng, *mode);
             auto pub = priv.public_key();
             ret = component::KEM_KeyPair(
                 component::KEM_PublicKey(pub->raw_public_key_bits().data(), pub->raw_public_key_bits().size()),
@@ -2055,9 +2076,10 @@ std::optional<component::KEM_Encapsulated> Botan::OpKEM_Encapsulate(operation::K
         ::Botan::PK_KEM_Encryptor enc(pub, "");
 
         if ( op.seed != std::nullopt && op.seed->GetSize() > 0 ) {
-            ::Botan::HMAC_DRBG seeded_rng("SHA-256");
-            seeded_rng.initialize_with(op.seed->GetPtr(), op.seed->GetSize());
-            auto result = enc.encrypt(seeded_rng);
+            /* FIPS 203 §7.2: Encaps draws exactly 32 bytes (m) */
+            CF_CHECK_EQ(op.seed->GetSize(), 32);
+            Botan_detail::FixedSeedRNG rng(op.seed->GetPtr(), 32);
+            auto result = enc.encrypt(rng);
             const auto& ct = result.encapsulated_shared_key();
             const auto& ss = result.shared_key();
             ret = component::KEM_Encapsulated(
