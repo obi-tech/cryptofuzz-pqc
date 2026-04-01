@@ -4760,6 +4760,22 @@ static int nist_rand_bytes(unsigned char* buf, int num) {
 }
 static int nist_rand_status(void) { return 1; }
 
+/* Fixed-output RAND for FIPS 203 §7.2 encapsulation: returns op.seed bytes directly */
+static uint8_t encaps_seed_buf[32];
+static size_t  encaps_seed_pos;
+
+static int fixed_rand_bytes(unsigned char* buf, int num) {
+    if (num < 0) return 0;
+    for (int i = 0; i < num; i++)
+        buf[i] = (encaps_seed_pos < sizeof(encaps_seed_buf))
+                 ? encaps_seed_buf[encaps_seed_pos++] : 0;
+    return 1;
+}
+
+static RAND_METHOD fixed_rand_method = {
+    nullptr, fixed_rand_bytes, nullptr, nullptr, fixed_rand_bytes, nist_rand_status
+};
+
 static RAND_METHOD nist_drbg_rand_method = {
     nullptr,
     nist_rand_bytes,
@@ -4941,15 +4957,14 @@ std::optional<component::KEM_KeyPair> OpenSSL::OpKEM_GenerateKeyPair(
     CF_CHECK_NE(ctx, nullptr);
 
     if (op.seed != std::nullopt && op.seed->GetSize() > 0) {
-        /* Derive 64-byte ML-KEM seed using NIST AES-CTR DRBG (matches liboqs) */
-        uint8_t kem_seed[64];
-        openssl_pqc_detail::pqc_drbg.init(op.seed->GetPtr(nullptr), op.seed->GetSize());
-        openssl_pqc_detail::pqc_drbg.generate(kem_seed, 64);
+        /* FIPS 203 §7.1: pass 64-byte d‖z directly — no DRBG expansion */
+        CF_CHECK_EQ(op.seed->GetSize(), 64);
 
         static const int zero = 0;
         OSSL_PARAM params[3];
         params[0] = OSSL_PARAM_construct_octet_string(
-            OSSL_PKEY_PARAM_ML_KEM_SEED, kem_seed, 64);
+            OSSL_PKEY_PARAM_ML_KEM_SEED,
+            const_cast<uint8_t*>(op.seed->GetPtr(nullptr)), 64);
         params[1] = OSSL_PARAM_construct_int(
             OSSL_PKEY_PARAM_ML_KEM_PREFER_SEED, const_cast<int*>(&zero));
         params[2] = OSSL_PARAM_construct_end();
@@ -4999,8 +5014,11 @@ std::optional<component::KEM_Encapsulated> OpenSSL::OpKEM_Encapsulate(
     CF_CHECK_NE(pkey, nullptr);
 
     if (op.seed != std::nullopt && op.seed->GetSize() > 0) {
-        openssl_pqc_detail::pqc_drbg.init(op.seed->GetPtr(nullptr), op.seed->GetSize());
-        RAND_set_rand_method(&openssl_pqc_detail::nist_drbg_rand_method);
+        /* FIPS 203 §7.2: encaps randomness m is exactly 32 bytes — pass directly */
+        CF_CHECK_EQ(op.seed->GetSize(), 32);
+        memcpy(openssl_pqc_detail::encaps_seed_buf, op.seed->GetPtr(nullptr), 32);
+        openssl_pqc_detail::encaps_seed_pos = 0;
+        RAND_set_rand_method(&openssl_pqc_detail::fixed_rand_method);
         rand_replaced = true;
     }
 
