@@ -23,8 +23,9 @@ struct PQSignParams {
 };
 
 static const std::vector<PQSignParams> pqsignParams = {
-    // Creates corpus files for ML-DSA-65 only
+    { ID("Cryptofuzz/PQSign/ML-DSA-44"), "mldsa44", 1312, 2560, 2420 },
     { ID("Cryptofuzz/PQSign/ML-DSA-65"), "mldsa65", 1952, 4032, 3309 },
+    { ID("Cryptofuzz/PQSign/ML-DSA-87"), "mldsa87", 2592, 4896, 4627 },
 };
 
 static std::random_device rd;

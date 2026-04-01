@@ -17,9 +17,17 @@ namespace fs = std::filesystem;
 
 using fuzzing::datasource::ID;
 
-static const uint64_t SIG_TYPE    = ID("Cryptofuzz/PQSign/ML-DSA-65");
-static const char*    SIG_NAME    = "mldsa65";
-static const char*    SIG_ALG     = OQS_SIG_alg_ml_dsa_65;
+struct SigAlg {
+    uint64_t    type;
+    const char* name;
+    const char* alg;
+};
+
+static const SigAlg SIG_ALGS[] = {
+    { ID("Cryptofuzz/PQSign/ML-DSA-44"), "mldsa44", OQS_SIG_alg_ml_dsa_44 },
+    { ID("Cryptofuzz/PQSign/ML-DSA-65"), "mldsa65", OQS_SIG_alg_ml_dsa_65 },
+    { ID("Cryptofuzz/PQSign/ML-DSA-87"), "mldsa87", OQS_SIG_alg_ml_dsa_87 },
+};
 
 static const uint64_t OP_KEYGEN   = ID("Cryptofuzz/Operation/PQSign_GenerateKeyPair");
 static const uint64_t OP_SIGN     = ID("Cryptofuzz/Operation/PQSign_Sign");
@@ -52,11 +60,11 @@ static void putModifier(fuzzing::datasource::Datasource& ds) {
     ds.PutData(modifier);
 }
 
-static std::vector<uint8_t> makeKeygen() {
+static std::vector<uint8_t> makeKeygen(uint64_t sigType) {
     fuzzing::datasource::Datasource ds(nullptr, 0);
     {
         fuzzing::datasource::Datasource payload(nullptr, 0);
-        payload.Put<uint64_t>(SIG_TYPE);
+        payload.Put<uint64_t>(sigType);
         payload.Put<bool>(false);  // no seed
         ds.Put<uint64_t>(OP_KEYGEN);
         ds.PutData(payload.GetOut());
@@ -65,12 +73,12 @@ static std::vector<uint8_t> makeKeygen() {
     return ds.GetOut();
 }
 
-static std::vector<uint8_t> makeSign(const std::vector<uint8_t>& sk,
+static std::vector<uint8_t> makeSign(uint64_t sigType, const std::vector<uint8_t>& sk,
                                      const std::vector<uint8_t>& msg) {
     fuzzing::datasource::Datasource ds(nullptr, 0);
     {
         fuzzing::datasource::Datasource payload(nullptr, 0);
-        payload.Put<uint64_t>(SIG_TYPE);
+        payload.Put<uint64_t>(sigType);
         payload.PutData(sk);
         payload.PutData(msg);
         payload.Put<bool>(false);  // no context
@@ -81,13 +89,13 @@ static std::vector<uint8_t> makeSign(const std::vector<uint8_t>& sk,
     return ds.GetOut();
 }
 
-static std::vector<uint8_t> makeVerify(const std::vector<uint8_t>& pk,
+static std::vector<uint8_t> makeVerify(uint64_t sigType, const std::vector<uint8_t>& pk,
                                        const std::vector<uint8_t>& msg,
                                        const std::vector<uint8_t>& signature) {
     fuzzing::datasource::Datasource ds(nullptr, 0);
     {
         fuzzing::datasource::Datasource payload(nullptr, 0);
-        payload.Put<uint64_t>(SIG_TYPE);
+        payload.Put<uint64_t>(sigType);
         payload.PutData(pk);
         payload.PutData(msg);
         payload.PutData(signature);
@@ -114,13 +122,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    OQS_SIG* sig = OQS_SIG_new(SIG_ALG);
-    if (sig == nullptr) {
-        std::cerr << "[-] OQS_SIG_new failed for " << SIG_ALG << "\n";
-        return 1;
-    }
-
-    std::cout << "[*] Generating valid ML-DSA-65 seeds in: " << outputDir << "\n";
+    std::cout << "[*] Generating valid ML-DSA seeds in: " << outputDir << "\n";
 
     static const size_t MESSAGE_SIZES[] = { 0, 1, 32, 256, 1024 };
     static const int KEYPAIRS = 3;
@@ -128,55 +130,60 @@ int main(int argc, char* argv[]) {
     size_t keygenCount = 0, signCount = 0, verifyCount = 0;
     size_t counter = 0;
 
-    for (int kp = 0; kp < KEYPAIRS; kp++) {
-        std::vector<uint8_t> pk(sig->length_public_key);
-        std::vector<uint8_t> sk(sig->length_secret_key);
-
-        // Generate real keypair
-        if (OQS_SIG_keypair(sig, pk.data(), sk.data()) != OQS_SUCCESS) {
-            std::cerr << "[-] OQS_SIG_keypair failed (keypair " << kp << ")\n";
+    for (const auto& a : SIG_ALGS) {
+        OQS_SIG* sig = OQS_SIG_new(a.alg);
+        if (sig == nullptr) {
+            std::cerr << "[-] OQS_SIG_new failed for " << a.alg << "\n";
             continue;
         }
 
-        // Keygen seed (once per keypair)
-        {
-            const std::string f = outputDir + "/pqsign_valid_keygen_" + SIG_NAME + "_" + std::to_string(kp);
-            writeCorpusFile(f, makeKeygen());
-            keygenCount++;
-        }
+        std::cout << "[*] " << a.name << "\n";
 
-        for (size_t msgLen : MESSAGE_SIZES) {
-            const std::vector<uint8_t> msg = randomBytes(msgLen);
-            std::vector<uint8_t> signature(sig->length_signature);
-            size_t sig_len = 0;
+        for (int kp = 0; kp < KEYPAIRS; kp++) {
+            std::vector<uint8_t> pk(sig->length_public_key);
+            std::vector<uint8_t> sk(sig->length_secret_key);
 
-            // Sign with real sk — result is a valid signature
-            if (OQS_SIG_sign(sig, signature.data(), &sig_len,
-                             msg.data(), msg.size(), sk.data()) != OQS_SUCCESS) {
-                std::cerr << "[-] OQS_SIG_sign failed (kp=" << kp << " msgLen=" << msgLen << ")\n";
+            if (OQS_SIG_keypair(sig, pk.data(), sk.data()) != OQS_SUCCESS) {
+                std::cerr << "[-] OQS_SIG_keypair failed (" << a.name << " kp=" << kp << ")\n";
                 continue;
             }
-            signature.resize(sig_len);
 
-            // Sign seed: real sk + message
             {
-                const std::string f = outputDir + "/pqsign_valid_sign_" + SIG_NAME + "_" + std::to_string(counter);
-                writeCorpusFile(f, makeSign(sk, msg));
-                signCount++;
+                const std::string f = outputDir + "/pqsign_valid_keygen_" + a.name + "_" + std::to_string(kp);
+                writeCorpusFile(f, makeKeygen(a.type));
+                keygenCount++;
             }
 
-            // Verify seed: real pk + message + real signature — verification should return true
-            {
-                const std::string f = outputDir + "/pqsign_valid_verify_" + SIG_NAME + "_" + std::to_string(counter);
-                writeCorpusFile(f, makeVerify(pk, msg, signature));
-                verifyCount++;
-            }
+            for (size_t msgLen : MESSAGE_SIZES) {
+                const std::vector<uint8_t> msg = randomBytes(msgLen);
+                std::vector<uint8_t> signature(sig->length_signature);
+                size_t sig_len = 0;
 
-            counter++;
+                if (OQS_SIG_sign(sig, signature.data(), &sig_len,
+                                 msg.data(), msg.size(), sk.data()) != OQS_SUCCESS) {
+                    std::cerr << "[-] OQS_SIG_sign failed (" << a.name << " kp=" << kp << " msgLen=" << msgLen << ")\n";
+                    continue;
+                }
+                signature.resize(sig_len);
+
+                {
+                    const std::string f = outputDir + "/pqsign_valid_sign_" + a.name + "_" + std::to_string(counter);
+                    writeCorpusFile(f, makeSign(a.type, sk, msg));
+                    signCount++;
+                }
+
+                {
+                    const std::string f = outputDir + "/pqsign_valid_verify_" + a.name + "_" + std::to_string(counter);
+                    writeCorpusFile(f, makeVerify(a.type, pk, msg, signature));
+                    verifyCount++;
+                }
+
+                counter++;
+            }
         }
-    }
 
-    OQS_SIG_free(sig);
+        OQS_SIG_free(sig);
+    }
 
     std::cout << "\n[+] Done.\n";
     std::cout << "    Valid keygen seeds : " << keygenCount << "\n";
