@@ -187,29 +187,26 @@ std::optional<component::PQSign_KeyPair> liboqs::OpPQSign_GenerateKeyPair(operat
     public_key = util::malloc(sig->length_public_key);
     secret_key = util::malloc(sig->length_secret_key);
 
-    // Check if deterministic seed is provided
+    // FIPS 204 §6.1: KeyGen draws exactly 32 bytes (ξ) — pass seed verbatim via fixed-buffer RNG
+    bool rng_replaced = false;
     if ( op.seed != std::nullopt && op.seed->GetSize() > 0 ) {
-        // DETERMINISTIC MODE for differential testing
-        liboqs_detail::seed_deterministic_rng(op.seed->GetPtr(nullptr), op.seed->GetSize());
-        OQS_randombytes_custom_algorithm(&liboqs_detail::deterministic_randombytes);
+        CF_CHECK_EQ(op.seed->GetSize(), 32);
+        liboqs_detail::seed_fixed_rng(op.seed->GetPtr(nullptr), 32);
+        OQS_randombytes_custom_algorithm(&liboqs_detail::fixed_randombytes);
+        rng_replaced = true;
     }
 
-    // Generate keypair
     CF_CHECK_EQ(OQS_SIG_keypair(sig, public_key, secret_key), OQS_SUCCESS);
 
-    // Restore original RNG if we used deterministic
-    if ( op.seed != std::nullopt && op.seed->GetSize() > 0 ) {
-        OQS_randombytes_custom_algorithm(nullptr);
-        liboqs_detail::cleanup_deterministic_rng();
-    }
-
-    // Create return value
     ret = component::PQSign_KeyPair(
         component::PQSign_PublicKey(public_key, sig->length_public_key),
         component::PQSign_PrivateKey(secret_key, sig->length_secret_key)
     );
 
 end:
+    if ( rng_replaced ) {
+        OQS_randombytes_custom_algorithm(nullptr);
+    }
     util::free(public_key);
     util::free(secret_key);
     OQS_SIG_free(sig);

@@ -2136,9 +2136,10 @@ std::optional<component::PQSign_KeyPair> Botan::OpPQSign_GenerateKeyPair(operati
         CF_CHECK_NE(mode, std::nullopt);
 
         if ( op.seed != std::nullopt && op.seed->GetSize() > 0 ) {
-            ::Botan::HMAC_DRBG seeded_rng("SHA-256");
-            seeded_rng.initialize_with(op.seed->GetPtr(), op.seed->GetSize());
-            ::Botan::Dilithium_PrivateKey priv(seeded_rng, *mode);
+            /* FIPS 204 §6.1: KeyGen draws exactly 32 bytes (ξ) */
+            CF_CHECK_EQ(op.seed->GetSize(), 32);
+            Botan_detail::FixedSeedRNG rng(op.seed->GetPtr(), 32);
+            ::Botan::Dilithium_PrivateKey priv(rng, *mode);
             auto pub = priv.public_key();
             ret = component::PQSign_KeyPair(
                 component::PQSign_PublicKey(pub->raw_public_key_bits().data(), pub->raw_public_key_bits().size()),
