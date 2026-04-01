@@ -17,9 +17,17 @@ namespace fs = std::filesystem;
 
 using fuzzing::datasource::ID;
 
-static const uint64_t KEM_TYPE    = ID("Cryptofuzz/KEM/ML-KEM-768");
-static const char*    KEM_NAME    = "mlkem768";
-static const char*    KEM_ALG     = OQS_KEM_alg_ml_kem_768;
+struct KemAlg {
+    uint64_t    type;
+    const char* name;
+    const char* alg;
+};
+
+static const KemAlg KEM_ALGS[] = {
+    { ID("Cryptofuzz/KEM/ML-KEM-512"),  "mlkem512",  OQS_KEM_alg_ml_kem_512  },
+    { ID("Cryptofuzz/KEM/ML-KEM-768"),  "mlkem768",  OQS_KEM_alg_ml_kem_768  },
+    { ID("Cryptofuzz/KEM/ML-KEM-1024"), "mlkem1024", OQS_KEM_alg_ml_kem_1024 },
+};
 
 static const uint64_t OP_KEYGEN   = ID("Cryptofuzz/Operation/KEM_GenerateKeyPair");
 static const uint64_t OP_ENCAPS   = ID("Cryptofuzz/Operation/KEM_Encapsulate");
@@ -52,11 +60,11 @@ static void putModifier(fuzzing::datasource::Datasource& ds) {
     ds.PutData(modifier);
 }
 
-static std::vector<uint8_t> makeKeygen() {
+static std::vector<uint8_t> makeKeygen(uint64_t kemType) {
     fuzzing::datasource::Datasource ds(nullptr, 0);
     {
         fuzzing::datasource::Datasource payload(nullptr, 0);
-        payload.Put<uint64_t>(KEM_TYPE);
+        payload.Put<uint64_t>(kemType);
         payload.Put<bool>(false);  // no seed
         ds.Put<uint64_t>(OP_KEYGEN);
         ds.PutData(payload.GetOut());
@@ -65,11 +73,11 @@ static std::vector<uint8_t> makeKeygen() {
     return ds.GetOut();
 }
 
-static std::vector<uint8_t> makeEncaps(const std::vector<uint8_t>& pk) {
+static std::vector<uint8_t> makeEncaps(uint64_t kemType, const std::vector<uint8_t>& pk) {
     fuzzing::datasource::Datasource ds(nullptr, 0);
     {
         fuzzing::datasource::Datasource payload(nullptr, 0);
-        payload.Put<uint64_t>(KEM_TYPE);
+        payload.Put<uint64_t>(kemType);
         payload.PutData(pk);
         payload.Put<bool>(false);  // no seed
         ds.Put<uint64_t>(OP_ENCAPS);
@@ -79,12 +87,12 @@ static std::vector<uint8_t> makeEncaps(const std::vector<uint8_t>& pk) {
     return ds.GetOut();
 }
 
-static std::vector<uint8_t> makeDecaps(const std::vector<uint8_t>& sk,
+static std::vector<uint8_t> makeDecaps(uint64_t kemType, const std::vector<uint8_t>& sk,
                                        const std::vector<uint8_t>& ct) {
     fuzzing::datasource::Datasource ds(nullptr, 0);
     {
         fuzzing::datasource::Datasource payload(nullptr, 0);
-        payload.Put<uint64_t>(KEM_TYPE);
+        payload.Put<uint64_t>(kemType);
         payload.PutData(sk);
         payload.PutData(ct);
         ds.Put<uint64_t>(OP_DECAPS);
@@ -109,62 +117,62 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    OQS_KEM* kem = OQS_KEM_new(KEM_ALG);
-    if (kem == nullptr) {
-        std::cerr << "[-] OQS_KEM_new failed for " << KEM_ALG << "\n";
-        return 1;
-    }
-
-    std::cout << "[*] Generating valid ML-KEM-768 seeds in: " << outputDir << "\n";
+    std::cout << "[*] Generating valid ML-KEM seeds in: " << outputDir << "\n";
 
     size_t keygenCount = 0, encapsCount = 0, decapsCount = 0;
 
     static const int ITERATIONS = 5;
 
-    for (int i = 0; i < ITERATIONS; i++) {
-        std::vector<uint8_t> pk(kem->length_public_key);
-        std::vector<uint8_t> sk(kem->length_secret_key);
-        std::vector<uint8_t> ct(kem->length_ciphertext);
-        std::vector<uint8_t> ss_enc(kem->length_shared_secret);
-        std::vector<uint8_t> ss_dec(kem->length_shared_secret);
-
-        // Generate real keypair
-        if (OQS_KEM_keypair(kem, pk.data(), sk.data()) != OQS_SUCCESS) {
-            std::cerr << "[-] OQS_KEM_keypair failed (iter " << i << ")\n";
+    for (const auto& a : KEM_ALGS) {
+        OQS_KEM* kem = OQS_KEM_new(a.alg);
+        if (kem == nullptr) {
+            std::cerr << "[-] OQS_KEM_new failed for " << a.alg << "\n";
             continue;
         }
 
-        // Keygen seed: operation with no key inputs (keygen takes no input)
-        {
-            const std::string f = outputDir + "/kem_valid_keygen_" + KEM_NAME + "_" + std::to_string(i);
-            writeCorpusFile(f, makeKeygen());
-            keygenCount++;
+        std::cout << "[*] " << a.name << "\n";
+
+        for (int i = 0; i < ITERATIONS; i++) {
+            std::vector<uint8_t> pk(kem->length_public_key);
+            std::vector<uint8_t> sk(kem->length_secret_key);
+            std::vector<uint8_t> ct(kem->length_ciphertext);
+            std::vector<uint8_t> ss_enc(kem->length_shared_secret);
+            std::vector<uint8_t> ss_dec(kem->length_shared_secret);
+
+            if (OQS_KEM_keypair(kem, pk.data(), sk.data()) != OQS_SUCCESS) {
+                std::cerr << "[-] OQS_KEM_keypair failed (" << a.name << " iter " << i << ")\n";
+                continue;
+            }
+
+            {
+                const std::string f = outputDir + "/kem_valid_keygen_" + a.name + "_" + std::to_string(i);
+                writeCorpusFile(f, makeKeygen(a.type));
+                keygenCount++;
+            }
+
+            if (OQS_KEM_encaps(kem, ct.data(), ss_enc.data(), pk.data()) != OQS_SUCCESS) {
+                std::cerr << "[-] OQS_KEM_encaps failed (" << a.name << " iter " << i << ")\n";
+                continue;
+            }
+            {
+                const std::string f = outputDir + "/kem_valid_encaps_" + a.name + "_" + std::to_string(i);
+                writeCorpusFile(f, makeEncaps(a.type, pk));
+                encapsCount++;
+            }
+
+            if (OQS_KEM_decaps(kem, ss_dec.data(), ct.data(), sk.data()) != OQS_SUCCESS) {
+                std::cerr << "[-] OQS_KEM_decaps failed (" << a.name << " iter " << i << ")\n";
+                continue;
+            }
+            {
+                const std::string f = outputDir + "/kem_valid_decaps_" + a.name + "_" + std::to_string(i);
+                writeCorpusFile(f, makeDecaps(a.type, sk, ct));
+                decapsCount++;
+            }
         }
 
-        // Encaps seed: uses real public key — encapsulation should succeed
-        if (OQS_KEM_encaps(kem, ct.data(), ss_enc.data(), pk.data()) != OQS_SUCCESS) {
-            std::cerr << "[-] OQS_KEM_encaps failed (iter " << i << ")\n";
-            continue;
-        }
-        {
-            const std::string f = outputDir + "/kem_valid_encaps_" + KEM_NAME + "_" + std::to_string(i);
-            writeCorpusFile(f, makeEncaps(pk));
-            encapsCount++;
-        }
-
-        // Decaps seed: uses real sk + real ct — decapsulation should succeed
-        if (OQS_KEM_decaps(kem, ss_dec.data(), ct.data(), sk.data()) != OQS_SUCCESS) {
-            std::cerr << "[-] OQS_KEM_decaps failed (iter " << i << ")\n";
-            continue;
-        }
-        {
-            const std::string f = outputDir + "/kem_valid_decaps_" + KEM_NAME + "_" + std::to_string(i);
-            writeCorpusFile(f, makeDecaps(sk, ct));
-            decapsCount++;
-        }
+        OQS_KEM_free(kem);
     }
-
-    OQS_KEM_free(kem);
 
     std::cout << "\n[+] Done.\n";
     std::cout << "    Valid keygen seeds : " << keygenCount << "\n";

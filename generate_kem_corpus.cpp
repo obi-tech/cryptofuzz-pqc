@@ -23,7 +23,9 @@ struct MLKEMParams {
 };
 
 static const std::vector<MLKEMParams> mlkemParams = {
+    { ID("Cryptofuzz/KEM/ML-KEM-512"),  "mlkem512",  800, 1632,  768 },
     { ID("Cryptofuzz/KEM/ML-KEM-768"),  "mlkem768", 1184, 2400, 1088 },
+    { ID("Cryptofuzz/KEM/ML-KEM-1024"), "mlkem1024", 1568, 3168, 1568 },
 };
 
 static std::random_device rd;
