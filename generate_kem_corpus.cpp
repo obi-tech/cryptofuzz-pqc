@@ -101,7 +101,7 @@ static void generateKEMKeygenSeeds(const std::string& outputDir, size_t& counter
                 payload.Put<uint64_t>(p.kemType);
                 payload.Put<bool>(withSeed);
                 if (withSeed) {
-                    payload.PutData(randomBytes(32));
+                    payload.PutData(randomBytes(64));  /* FIPS 203 §7.1: d‖z = 64 bytes */
                 }
                 ds.Put<uint64_t>(operation);
                 ds.PutData(payload.GetOut());
