@@ -78,20 +78,13 @@ std::optional<component::KEM_KeyPair> liboqs::OpKEM_GenerateKeyPair(operation::K
     public_key = util::malloc(kem->length_public_key);
     secret_key = util::malloc(kem->length_secret_key);
     
-    // Check if deterministic seed is provided
+    // FIPS 203 §7.1: KeyGen takes exactly 64 bytes (d‖z)
     if ( op.seed != std::nullopt && op.seed->GetSize() > 0 ) {
-        // DETERMINISTIC MODE for differential testing
-        liboqs_detail::seed_deterministic_rng(op.seed->GetPtr(nullptr), op.seed->GetSize());
-        OQS_randombytes_custom_algorithm(&liboqs_detail::deterministic_randombytes);
-    }
-    
-    // Generate keypair
-    CF_CHECK_EQ(OQS_KEM_keypair(kem, public_key, secret_key), OQS_SUCCESS);
-    
-    // Restore original RNG if we used deterministic
-    if ( op.seed != std::nullopt && op.seed->GetSize() > 0 ) {
-        OQS_randombytes_custom_algorithm(nullptr);
-        liboqs_detail::cleanup_deterministic_rng();
+        CF_CHECK_EQ(op.seed->GetSize(), kem->length_keypair_seed);
+        CF_CHECK_EQ(OQS_KEM_keypair_derand(kem, public_key, secret_key,
+                                           op.seed->GetPtr(nullptr)), OQS_SUCCESS);
+    } else {
+        CF_CHECK_EQ(OQS_KEM_keypair(kem, public_key, secret_key), OQS_SUCCESS);
     }
     
     // Create return value
@@ -125,20 +118,13 @@ std::optional<component::KEM_Encapsulated> liboqs::OpKEM_Encapsulate(operation::
     ciphertext = util::malloc(kem->length_ciphertext);
     shared_secret = util::malloc(kem->length_shared_secret);
     
-    // Check if deterministic seed is provided
+    // FIPS 203 §7.2: Encaps takes exactly 32 bytes (m)
     if ( op.seed != std::nullopt && op.seed->GetSize() > 0 ) {
-        // DETERMINISTIC MODE for differential testing
-        liboqs_detail::seed_deterministic_rng(op.seed->GetPtr(nullptr), op.seed->GetSize());
-        OQS_randombytes_custom_algorithm(&liboqs_detail::deterministic_randombytes);
-    }
-    
-    // Encapsulate
-    CF_CHECK_EQ(OQS_KEM_encaps(kem, ciphertext, shared_secret, op.pub.GetPtr()), OQS_SUCCESS);
-    
-    // Restore original RNG if we used deterministic
-    if ( op.seed != std::nullopt && op.seed->GetSize() > 0 ) {
-        OQS_randombytes_custom_algorithm(nullptr);
-        liboqs_detail::cleanup_deterministic_rng();
+        CF_CHECK_EQ(op.seed->GetSize(), kem->length_encaps_seed);
+        CF_CHECK_EQ(OQS_KEM_encaps_derand(kem, ciphertext, shared_secret,
+                                          op.pub.GetPtr(), op.seed->GetPtr(nullptr)), OQS_SUCCESS);
+    } else {
+        CF_CHECK_EQ(OQS_KEM_encaps(kem, ciphertext, shared_secret, op.pub.GetPtr()), OQS_SUCCESS);
     }
     
     // Create return value
