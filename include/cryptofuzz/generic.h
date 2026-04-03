@@ -44,6 +44,7 @@ class Buffer {
         const std::vector<uint8_t>& GetConstVectorPtr(void) const;
         size_t GetSize(void) const;
         bool operator==(const Buffer& rhs) const;
+        bool operator!=(const Buffer& rhs) const { return !(*this == rhs); }
         nlohmann::json ToJSON(void) const;
         std::string ToHex(void) const;
         void Serialize(Datasource& ds) const;

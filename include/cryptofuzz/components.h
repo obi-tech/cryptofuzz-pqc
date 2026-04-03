@@ -432,6 +432,7 @@ class KEM_KeyPair {
         KEM_KeyPair(nlohmann::json json);
 
         bool operator==(const KEM_KeyPair& rhs) const;
+        bool operator!=(const KEM_KeyPair& rhs) const { return !(*this == rhs); }
         void Serialize(Datasource& ds) const;
         nlohmann::json ToJSON(void) const;
 };
@@ -446,6 +447,7 @@ class KEM_Encapsulated {
         KEM_Encapsulated(nlohmann::json json);
 
         bool operator==(const KEM_Encapsulated& rhs) const;
+        bool operator!=(const KEM_Encapsulated& rhs) const { return !(*this == rhs); }
         void Serialize(Datasource& ds) const;
         nlohmann::json ToJSON(void) const;
 };
@@ -460,6 +462,7 @@ class PQSign_KeyPair {
         PQSign_KeyPair(nlohmann::json json);
 
         bool operator==(const PQSign_KeyPair& rhs) const;
+        bool operator!=(const PQSign_KeyPair& rhs) const { return !(*this == rhs); }
         void Serialize(Datasource& ds) const;
         nlohmann::json ToJSON(void) const;
 };
