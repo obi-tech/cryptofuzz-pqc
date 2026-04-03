@@ -179,6 +179,7 @@ std::optional<component::PQSign_KeyPair> liboqs::OpPQSign_GenerateKeyPair(operat
     OQS_SIG* sig = nullptr;
     uint8_t* public_key = nullptr;
     uint8_t* secret_key = nullptr;
+    bool rng_replaced = false;
 
     // Get the SIG algorithm
     CF_CHECK_NE(sig = getPQSIG(op.pqsignType.Get()), nullptr);
@@ -188,7 +189,6 @@ std::optional<component::PQSign_KeyPair> liboqs::OpPQSign_GenerateKeyPair(operat
     secret_key = util::malloc(sig->length_secret_key);
 
     // FIPS 204 §6.1: KeyGen draws exactly 32 bytes (ξ) — pass seed verbatim via fixed-buffer RNG
-    bool rng_replaced = false;
     if ( op.seed != std::nullopt && op.seed->GetSize() > 0 ) {
         CF_CHECK_EQ(op.seed->GetSize(), 32);
         liboqs_detail::seed_fixed_rng(op.seed->GetPtr(nullptr), 32);
