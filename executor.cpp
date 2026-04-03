@@ -2866,7 +2866,7 @@ void ExecutorBase<component::KEM_KeyPair, operation::KEM_GenerateKeyPair>::compa
 
     bool same = true;
     for (size_t i = 1; i < results.size(); i++) {
-        if ( results[0] != results[i] ) {
+        if ( results[0].second != results[i].second ) {
             same = false;
             break;
         }
@@ -2939,7 +2939,7 @@ void ExecutorBase<component::KEM_Encapsulated, operation::KEM_Encapsulate>::comp
 
     bool same = true;
     for (size_t i = 1; i < results.size(); i++) {
-        if ( results[0] != results[i] ) {
+        if ( results[0].second != results[i].second ) {
             same = false;
             break;
         }
@@ -3002,7 +3002,7 @@ void ExecutorBase<component::KEM_SharedSecret, operation::KEM_Decapsulate>::comp
 
     bool same = true;
     for (size_t i = 1; i < results.size(); i++) {
-        if ( results[0] != results[i] ) {
+        if ( results[0].second != results[i].second ) {
             same = false;
             break;
         }
@@ -3073,7 +3073,7 @@ void ExecutorBase<component::PQSign_KeyPair, operation::PQSign_GenerateKeyPair>:
 
     bool same = true;
     for (size_t i = 1; i < results.size(); i++) {
-        if ( results[0] != results[i] ) {
+        if ( results[0].second != results[i].second ) {
             same = false;
             break;
         }
@@ -3165,7 +3165,7 @@ void ExecutorBase<bool, operation::PQSign_Verify>::compare(
 
     bool same = true;
     for (size_t i = 1; i < results.size(); i++) {
-        if ( results[0] != results[i] ) {
+        if ( results[0].second != results[i].second ) {
             same = false;
             break;
         }
