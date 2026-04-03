@@ -4776,15 +4776,6 @@ static RAND_METHOD fixed_rand_method = {
     nullptr, fixed_rand_bytes, nullptr, nullptr, fixed_rand_bytes, nist_rand_status
 };
 
-static RAND_METHOD nist_drbg_rand_method = {
-    nullptr,
-    nist_rand_bytes,
-    nullptr,
-    nullptr,
-    nist_rand_bytes,
-    nist_rand_status
-};
-
 /* ----------------------------------------------------------------------- */
 
 static const char* kemTypeToAlgName(uint64_t t) {
