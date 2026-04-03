@@ -4696,68 +4696,6 @@ bool OpenSSL::SupportsModularBignumCalc(void) const {
 
 namespace openssl_pqc_detail {
 
-/* -----------------------------------------------------------------------
- * NIST AES-256-CTR DRBG — matches OQS_randombytes_nist_kat_init_256bit /
- * OQS_randombytes_nist_kat exactly so seeded cross-module comparisons pass.
- * ----------------------------------------------------------------------- */
-struct NistDRBG {
-    uint8_t key[32];
-    uint8_t v[16];
-
-    void update(const uint8_t* data48) {
-        uint8_t temp[48];
-        AES_KEY aes_key;
-        AES_set_encrypt_key(key, 256, &aes_key);
-        for (int i = 0; i < 3; i++) {
-            /* V = V + 1 mod 2^128 (big-endian) */
-            for (int j = 15; j >= 0; j--) {
-                if (v[j] == 0xff) { v[j] = 0x00; }
-                else { v[j]++; break; }
-            }
-            AES_ecb_encrypt(v, temp + 16 * i, &aes_key, AES_ENCRYPT);
-        }
-        if (data48 != nullptr) {
-            for (int i = 0; i < 48; i++) temp[i] ^= data48[i];
-        }
-        memcpy(key, temp,      32);
-        memcpy(v,   temp + 32, 16);
-    }
-
-    void init(const uint8_t* seed, size_t seed_len) {
-        uint8_t entropy[48] = {0};
-        size_t copy_len = seed_len < 48 ? seed_len : 48;
-        memcpy(entropy, seed, copy_len);
-        memset(key, 0, 32);
-        memset(v,   0, 16);
-        update(entropy);
-    }
-
-    void generate(uint8_t* out, size_t n) {
-        AES_KEY aes_key;
-        AES_set_encrypt_key(key, 256, &aes_key);
-        uint8_t block[16];
-        size_t pos = 0;
-        while (pos < n) {
-            for (int j = 15; j >= 0; j--) {
-                if (v[j] == 0xff) { v[j] = 0x00; }
-                else { v[j]++; break; }
-            }
-            AES_ecb_encrypt(v, block, &aes_key, AES_ENCRYPT);
-            size_t to_copy = (n - pos) < 16 ? (n - pos) : 16;
-            memcpy(out + pos, block, to_copy);
-            pos += to_copy;
-        }
-        update(nullptr);
-    }
-};
-
-static NistDRBG pqc_drbg;
-
-static int nist_rand_bytes(unsigned char* buf, int num) {
-    if (num < 0) return 0;
-    pqc_drbg.generate(buf, (size_t)num);
-    return 1;
-}
 static int nist_rand_status(void) { return 1; }
 
 /* Fixed-output RAND for FIPS 203 §7.2 encapsulation: returns op.seed bytes directly */
