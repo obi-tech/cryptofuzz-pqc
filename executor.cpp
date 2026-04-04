@@ -3071,16 +3071,25 @@ void ExecutorBase<component::PQSign_KeyPair, operation::PQSign_GenerateKeyPair>:
         return;
     }
 
+    /* Compare only public keys — private key format differs by design across libraries
+     * (Botan: 32-byte seed, liboqs/OpenSSL: 4032-byte expanded). The public key has a
+     * single canonical FIPS 204 encoding all three must agree on. */
     bool same = true;
     for (size_t i = 1; i < results.size(); i++) {
-        if ( results[0].second != results[i].second ) {
+        const auto& r0 = results[0].second;
+        const auto& ri = results[i].second;
+        if ( r0.has_value() != ri.has_value() ) {
+            same = false;
+            break;
+        }
+        if ( r0.has_value() && ri.has_value() && r0->pub != ri->pub ) {
             same = false;
             break;
         }
     }
 
     if ( same == false ) {
-        printf("PQSign_GenerateKeyPair result mismatch:\n");
+        printf("PQSign_GenerateKeyPair public key mismatch:\n");
         std::vector<std::string> moduleNames;
         for (size_t i = 0; i < results.size(); i++) {
             std::cout << "Module " << operations[i].first->name << ":\n";
