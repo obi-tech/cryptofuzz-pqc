@@ -205,7 +205,7 @@ std::optional<component::PQSign_KeyPair> liboqs::OpPQSign_GenerateKeyPair(operat
 
 end:
     if ( rng_replaced ) {
-        OQS_randombytes_switch_algorithm(OQS_RAND_alg_openssl);
+        OQS_randombytes_switch_algorithm(OQS_RAND_alg_system);
     }
     util::free(public_key);
     util::free(secret_key);
@@ -250,14 +250,13 @@ std::optional<component::PQSign_Signature> liboqs::OpPQSign_Sign(operation::PQSi
         ), OQS_SUCCESS);
     }
 
-    // Restore original RNG
-    OQS_randombytes_custom_algorithm(nullptr);
-    liboqs_detail::cleanup_deterministic_rng();
-
     // Create return value
     ret = component::PQSign_Signature(signature, sig_len);
 
 end:
+    // Always restore RNG — never leave it pointing at deterministic_randombytes or nullptr
+    OQS_randombytes_switch_algorithm(OQS_RAND_alg_system);
+    liboqs_detail::cleanup_deterministic_rng();
     util::free(signature);
     OQS_SIG_free(sig);
 
