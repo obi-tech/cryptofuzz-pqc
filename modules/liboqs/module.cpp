@@ -205,7 +205,7 @@ std::optional<component::PQSign_KeyPair> liboqs::OpPQSign_GenerateKeyPair(operat
 
 end:
     if ( rng_replaced ) {
-        OQS_randombytes_custom_algorithm(nullptr);
+        OQS_randombytes_switch_algorithm(OQS_RAND_alg_openssl);
     }
     util::free(public_key);
     util::free(secret_key);
