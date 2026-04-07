@@ -2767,7 +2767,7 @@ extern "C" size_t LLVMFuzzerCustomMutator(uint8_t* data, size_t size, size_t max
                     // OPTIONAL: 50% deterministic seed for differential testing
                     if ( getBool() ) {
                         parameters["seed_enabled"] = true;
-                        parameters["seed"] = getBuffer(32);  // 32-byte seed
+                        parameters["seed"] = getBuffer(64);  // FIPS 203 §7.1: d‖z = 64 bytes
                     } else {
                         parameters["seed_enabled"] = false;
                     }
