@@ -2864,19 +2864,26 @@ void ExecutorBase<component::KEM_KeyPair, operation::KEM_GenerateKeyPair>::compa
         return;
     }
 
+    /* Compare only public keys — private key formats legitimately diverge across
+     * libraries (Botan exports 64B seed, liboqs/OpenSSL export expanded 3168B dk).
+     * A public-key mismatch under the same seed IS a real FIPS-203 violation. */
     bool same = true;
     for (size_t i = 1; i < results.size(); i++) {
-        if ( results[0].second != results[i].second ) {
+        if ( results[0].second.has_value() != results[i].second.has_value() ) {
+            same = false;
+            break;
+        }
+        if ( results[0].second.has_value() &&
+             results[0].second->pub != results[i].second->pub ) {
             same = false;
             break;
         }
     }
 
     if ( same == false ) {
-        /* Thesis finding: seeded ML-KEM keygen divergence between liboqs and OpenSSL.
-         * Log the mismatch for analysis but do not abort — this is a known cross-library
-         * key-format / FIPS-203 implementation discrepancy being investigated.
-         * Encapsulate and Decapsulate comparisons are still enforced. */
+        /* Thesis finding: seeded ML-KEM keygen public-key divergence.
+         * Log the mismatch for analysis but do not abort — private key format
+         * differences are expected; a public key mismatch is the real bug signal. */
         printf("KEM_GenerateKeyPair seeded mismatch (thesis finding — logged, not fatal):\n");
         for (size_t i = 0; i < results.size(); i++) {
             std::cout << "  Module " << operations[i].first->name << ": ";
@@ -2937,12 +2944,28 @@ void ExecutorBase<component::KEM_Encapsulated, operation::KEM_Encapsulate>::comp
         return;
     }
 
+    /* Only compare modules that produced a result.  A module returning nullopt
+     * indicates a key-import or key-validation failure (e.g. Botan rejecting
+     * a foreign public key), not a computation divergence.  We abort only when
+     * two or more modules both returned a value and those values differ. */
+    std::optional<component::KEM_Encapsulated> reference;
     bool same = true;
-    for (size_t i = 1; i < results.size(); i++) {
-        if ( results[0].second != results[i].second ) {
+    size_t withValue = 0;
+    for (size_t i = 0; i < results.size(); i++) {
+        if ( !results[i].second.has_value() ) continue;
+        withValue++;
+        if ( !reference.has_value() ) {
+            reference = results[i].second;
+            continue;
+        }
+        if ( reference != results[i].second ) {
             same = false;
             break;
         }
+    }
+
+    if ( withValue < 2 ) {
+        return;
     }
 
     if ( same == false ) {
@@ -2995,17 +3018,37 @@ void ExecutorBase<component::KEM_SharedSecret, operation::KEM_Decapsulate>::comp
     (void)data;
     (void)size;
     
-    // KEM decapsulation IS deterministic - same ciphertext + private key = same shared secret
+    /* KEM decapsulation is deterministic — same private key + ciphertext must give
+     * the same shared secret across all modules.
+     *
+     * However, a module may return nullopt if it cannot import the private key
+     * (format incompatibility — e.g. OpenSSL rejecting a liboqs-format dk, or
+     * a mismatched key/ciphertext pair causing an internal validation failure).
+     * That is a different class of issue from a computation divergence, so we
+     * only abort when two or more modules both produced a value and those
+     * values differ. */
     if ( results.size() < 2 ) {
         return;
     }
 
+    std::optional<component::KEM_SharedSecret> reference;
     bool same = true;
-    for (size_t i = 1; i < results.size(); i++) {
-        if ( results[0].second != results[i].second ) {
+    size_t withValue = 0;
+    for (size_t i = 0; i < results.size(); i++) {
+        if ( !results[i].second.has_value() ) continue;
+        withValue++;
+        if ( !reference.has_value() ) {
+            reference = results[i].second;
+            continue;
+        }
+        if ( reference != results[i].second ) {
             same = false;
             break;
         }
+    }
+
+    if ( withValue < 2 ) {
+        return;
     }
 
     if ( same == false ) {
