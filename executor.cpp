@@ -3098,9 +3098,7 @@ void ExecutorBase<component::PQSign_KeyPair, operation::PQSign_GenerateKeyPair>:
 
     (void)operations;
     (void)results;
-    /* No comparison — keygen correctness is tested indirectly via PQSign_Verify.
-     * Private key formats differ by design across libraries (Botan: 32-byte seed,
-     * liboqs/OpenSSL: expanded), making direct keypair comparison unreliable. */
+    /* Private key formats differ by design across libraries (Botan: 32-byte seed). */
 }
 
 template<>
