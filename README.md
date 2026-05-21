@@ -12,9 +12,7 @@ Cryptofuzz was created and maintained by [Guido Vranken](https://github.com/guid
 
 This fork extends CryptoFuzz with experimental support for post-quantum cryptographic operations, focusing on ML-KEM and ML-DSA. The extension adds PQC operation types, algorithm registry entries, structured mutation support, differential execution logic, and backend integration for selected cryptographic libraries.
 
-Build instructions and commands for reproducing the PQC fuzzing setup are available in:
-
-- [PQC reproducibility guide](docs/pqc-build-and-fuzzing.md)
+Build instructions and commands for reproducing the PQC fuzzing setup are available in [`docs/pqc-build-and-fuzzing.md`](docs/pqc-build-and-fuzzing.md).
 
 For building Cryptofuzz, please refer to [`docs/building.md`](docs/building.md).
 
