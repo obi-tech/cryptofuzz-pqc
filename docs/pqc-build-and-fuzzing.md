@@ -36,11 +36,13 @@ mkdir -p "$WORKDIR"
 
 Expected directory layout:
 
+```bash
 $WORKDIR/
 ├── cryptofuzz-pqc/
 ├── liboqs/
 ├── openssl/
 └── botan/
+```
 
 Clone this repository into $CRYPTOFUZZ_DIR:
 
@@ -82,6 +84,7 @@ export CXXFLAGS="-fsanitize=address,undefined,fuzzer-no-link -D_GLIBCXX_DEBUG -O
 ```
 
 The fuzzer-no-link option instruments dependency libraries without linking them directly to the libFuzzer runtime. The final CryptoFuzz binary is linked with libFuzzer later.
+
 ---
 
 ## 4. Build liboqs
