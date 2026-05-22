@@ -1,6 +1,6 @@
 # PQC Reproducibility Guide
 
-This document describes how to reproduce the build and fuzzing setup used for the PQC extension of CryptoFuzz. The extension focuses on ML-KEM and ML-DSA and includes support for PQC operation modelling, repository registration, structured mutation, differential execution, and backend integration for selected cryptographic libraries.
+This document describes how to reproduce the build and fuzzing setup used for the PQC extension of Cryptofuzz. The extension focuses on ML-KEM and ML-DSA and includes support for PQC operation modelling, repository registration, structured mutation, differential execution, and backend integration for selected cryptographic libraries.
 
 ## Notes on Reproducibility
 
@@ -12,11 +12,12 @@ For full campaign runs, use the same runtime duration, number of rounds, workers
 
 ## Scope
 
-This repository is a research prototype developed for thesis evaluation. It focuses on ML-KEM and ML-DSA support in CryptoFuzz and was tested with liboqs, OpenSSL, and Botan backends.
+This repository is a research prototype developed for thesis evaluation. It focuses on ML-KEM and ML-DSA support in Cryptofuzz and was tested with liboqs, OpenSSL, and Botan backends.
 
 ## Status
 
 The implementation is intended for research and reproducibility purposes. It should not be treated as production cryptographic software.
+
 ---
 
 **Note**: The commands below assume that all repositories are placed under `$WORKDIR`. You may set this variable to any directory on your system.
@@ -49,7 +50,7 @@ Clone this repository into $CRYPTOFUZZ_DIR:
 ```bash
 cd "$WORKDIR"
 
-git clone https://github.com/<#username>/#repo-name>.git "$CRYPTOFUZZ_DIR"
+git clone https://github.com/obi-tech/pqc-cryptofuzz.git "$CRYPTOFUZZ_DIR"
 ```
 
 ## 2. Required Tools
@@ -66,10 +67,11 @@ sudo apt install -y \
   python3 \
   clang \
   lld \
-  pkg-config
+  pkg-config \
+  libboost-all-dev
 ```
 
-Clang is required because CryptoFuzz uses libFuzzer and sanitizer instrumentation.
+Clang is required because Cryptofuzz uses libFuzzer and sanitizer instrumentation. The Boost development package is included because parts of the Cryptofuzz build depend on Boost headers and libraries. If Boost is missing, the build may fail duing compilation or linking
 
 ## 3. Common Build Flags
 
@@ -83,7 +85,7 @@ export CFLAGS="-fsanitize=address,undefined,fuzzer-no-link -O2 -g"
 export CXXFLAGS="-fsanitize=address,undefined,fuzzer-no-link -D_GLIBCXX_DEBUG -O2 -g"
 ```
 
-The fuzzer-no-link option instruments dependency libraries without linking them directly to the libFuzzer runtime. The final CryptoFuzz binary is linked with libFuzzer later.
+The fuzzer-no-link option instruments dependency libraries without linking them directly to the libFuzzer runtime. The final Cryptofuzz binary is linked with libFuzzer later.
 
 ---
 
@@ -130,23 +132,17 @@ cd "$OPENSSL_DIR"
 ./Configure linux-x86_64 \
   no-shared \
   no-asm \
-  -static \
-  -fPIC \
   --prefix="$OPENSSL_DIR/build" \
-  $CFLAGS
 
 make -j"$(nproc)"
-make install_sw
 ```
 
 Export the OpenSSL paths:
 
 ```bash
-export OPENSSL_A_PATH="$OPENSSL_DIR/build/lib64/libcrypto.a"
-export OPENSSL_INCLUDE_PATH="$OPENSSL_DIR/build/include"
+export OPENSSL_A_PATH="$OPENSSL_DIR/libcrypto.a"
+export OPENSSL_INCLUDE_PATH="$OPENSSL_DIR/include"
 ```
-
-Depending on the local OpenSSL build, the static library may be located under build/lib/libcrypto.a instead of build/lib64/libcrypto.a.
 
 
 ## 6. Build Botan
@@ -158,15 +154,14 @@ git clone --depth 1 https://github.com/randombit/botan.git "$BOTAN_DIR"
 cd "$BOTAN_DIR"
 
 python3 configure.py \
-  --cc=clang \
-  --cc-bin=clang++ \
+  --cc-bin="$CXX" \
+  --cc-abi-flags="$CXXFLAGS" \
+  --disable-shared-library \
   --build-targets=static \
+  --without-documentation \
   --disable-modules=locking_allocator,x509 \
-  --enable-modules=ml_kem,ml_dsa \
-  --with-build-dir=build \
-  --extra-cxxflags="$CXXFLAGS"
 
-make -C build/build -j"$(nproc)"
+make -j"$(nproc)"
 
 ```
 
@@ -179,9 +174,9 @@ export BOTAN_INCLUDE_PATH="$BOTAN_DIR/build/build/include/public"
 
 ---
 
-## 7. Generate CryptoFuzz Repository Files
+## 7. Generate Cryptofuzz Repository Files
 
-Before building CryptoFuzz, generate the repository lookup files:
+Before building Cryptofuzz, generate the repository lookup files:
 
 ```bash
 cd "$CRYPTOFUZZ_DIR"
@@ -198,7 +193,7 @@ include/cryptofuzz/repository.h:23:10: fatal error: ../../repository_tbl.h: No s
       |          ^~~~~~~~~~~~~~~~~~~~~~~~
 ```
 
-## 8. Build CryptoFuzz Modules
+## 8. Build Cryptofuzz Modules
 
 Build the backend modules that should participate in differential fuzzing.
 
@@ -207,8 +202,6 @@ Build the backend modules that should participate in differential fuzzing.
 ```bash
 
 cd "$CRYPTOFUZZ_DIR/modules/liboqs"
-
-make clean
 make -j"$(nproc)"
 ```
 
@@ -216,8 +209,6 @@ make -j"$(nproc)"
 
 ```bash
 cd "$CRYPTOFUZZ_DIR/modules/openssl"
-
-make clean
 make -j"$(nproc)"
 ```
 
@@ -225,14 +216,12 @@ make -j"$(nproc)"
 
 ```bash
 cd "$CRYPTOFUZZ_DIR/modules/botan"
-
-make clean
 make -j"$(nproc)"
 ```
 
-## 9. Build the CryptoFuzz Binary
+## 9. Build the Cryptofuzz Binary
 
-From the root of the CryptoFuzz repository:
+From the root of the Cryptofuzz repository:
 
 ```bash
 cd "$CRYPTOFUZZ_DIR"
@@ -240,12 +229,15 @@ cd "$CRYPTOFUZZ_DIR"
 make clean
 
 CXX=clang++ \
-CXXFLAGS="-fsanitize=address,undefined -O2 -g -D_GLIBCXX_DEBUG -DCRYPTOFUZZ_LIBOQS" \
+CXXFLAGS="-fsanitize=address,undefined -O2 -g -D_GLIBCXX_DEBUG -DCRYPTOFUZZ_BOTAN -DCRYPTOFUZZ_LIBOQS" \
 make -j"$(nproc)"
 ```
 
-Adjust the compile-time flags depending on the modules included in the local build.
+The flags `-DCRYPTOFUZZ_BOTAN` and `-DCRYPTOFUZZ_LIBOQS` explicitly enable the Botan and liboqs modules in this build. OpenSSL is included by default in the Cryptofuzz entry point unless the `-DCRYPTOFUZZ_NO_OPENSSL` flag is added.
 
+The module flags can be adjusted depending on which backends should be included in a particular build. For example, to build with Botan and liboqs, keep both `-DCRYPTOFUZZ_BOTAN` and `-DCRYPTOFUZZ_LIBOQS`. To exclude OpenSSL from the build, add `-DCRYPTOFUZZ_NO_OPENSSL` to CXXFLAGS.
+
+If OpenSSL support is included, make sure the OpenSSL library and include paths have already been exported before building Cryptofuzz.
 
 ## 10. Prepare Corpus and Crash Directories
 
